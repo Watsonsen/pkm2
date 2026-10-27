@@ -1,0 +1,896 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_tiq4w"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_frame.png" id="2_5lw4i"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herodetail-detail-close.png" id="3_tkuj2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herodetail-detail-close-p.png" id="4_el0p6"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/money_arenatoken_small.png" id="5_k8cp0"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_enemy_bg.png" id="6_e6ww8"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/main_head_bg.png" id="7_1hcj0"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/main_head_level_bg_silver.png" id="8_6ctu3"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_price_bg.png" id="9_571j6"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/rmbicon.png" id="10_4lq6v"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_rank_frame.png" id="11_5d04m"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade_title_short_bg.png" id="12_acw7r"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/task_window_title_bg.png" id="13_fgpmm"]
+
+[node name="LadderContent" type="Control" unique_id=799324850]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FrameworkBg" type="TextureRect" parent="." unique_id=1213053656]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 800.0
+offset_bottom = 480.0
+mouse_filter = 2
+texture = ExtResource("1_tiq4w")
+expand_mode = 1
+
+[node name="PvpFrame" type="TextureRect" parent="." unique_id=1202229659]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 35.0
+offset_top = 72.6
+offset_right = 765.2
+offset_bottom = 467.4
+mouse_filter = 2
+texture = ExtResource("2_5lw4i")
+expand_mode = 1
+
+[node name="HeaderLayer" type="Control" parent="." unique_id=182499611]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CloseBtn" type="TextureButton" parent="HeaderLayer" unique_id=1583706755]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.76
+offset_bottom = 73.54
+texture_normal = ExtResource("3_tkuj2")
+texture_pressed = ExtResource("4_el0p6")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabChallengeView" type="Control" parent="." unique_id=868363960]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RankLabel" type="Label" parent="TabChallengeView" unique_id=1733691993]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 201.0
+offset_right = 200.0
+offset_bottom = 225.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "我的排名:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ArenaIcon" type="TextureRect" parent="TabChallengeView" unique_id=751418945]
+unique_name_in_owner = true
+z_index = 1
+layout_mode = 0
+offset_left = 622.35
+offset_top = 201.1
+offset_right = 649.65
+offset_bottom = 226.9
+mouse_filter = 2
+texture = ExtResource("5_k8cp0")
+expand_mode = 1
+
+[node name="GpsLabel" type="Label" parent="TabChallengeView" unique_id=773898703]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 595.0
+offset_top = 100.0
+offset_right = 695.0
+offset_bottom = 124.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "战斗力:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsValue" type="Label" parent="TabChallengeView" unique_id=611642141]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 670.0
+offset_top = 100.0
+offset_right = 760.0
+offset_bottom = 124.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LeftTimeLabel" type="Label" parent="TabChallengeView" unique_id=1113536513]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 26.0
+offset_top = 258.0
+offset_right = 226.0
+offset_bottom = 282.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "今日剩余次数"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LeftTimeNum" type="Label" parent="TabChallengeView" unique_id=669145466]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 76.0
+offset_top = 280.0
+offset_right = 176.0
+offset_bottom = 304.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnemyCard1" type="Control" parent="TabChallengeView" unique_id=385556292]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 205.7
+offset_top = 245.4
+offset_right = 374.3
+offset_bottom = 454.6
+mouse_filter = 2
+
+[node name="EnemyBg" type="TextureRect" parent="TabChallengeView/EnemyCard1" unique_id=1376307063]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("6_e6ww8")
+expand_mode = 1
+
+[node name="HeadBg" type="TextureRect" parent="TabChallengeView/EnemyCard1" unique_id=596103870]
+layout_mode = 1
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+texture = ExtResource("7_1hcj0")
+expand_mode = 1
+
+[node name="HeadHost" type="Control" parent="TabChallengeView/EnemyCard1" unique_id=1656608169]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+
+[node name="LevelBg" type="TextureRect" parent="TabChallengeView/EnemyCard1" unique_id=2007697119]
+layout_mode = 1
+offset_left = 42.1
+offset_top = 55.6
+offset_right = 78.0
+offset_bottom = 86.1
+mouse_filter = 2
+texture = ExtResource("8_6ctu3")
+expand_mode = 1
+
+[node name="LevelLbl" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=438647929]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 60.0
+offset_right = 80.0
+offset_bottom = 82.0
+theme_type_variation = &"LadderCreamLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NameLbl" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=1017757814]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 87.0
+offset_right = 144.0
+offset_bottom = 109.0
+theme_type_variation = &"LadderWhiteShadowLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankLbl" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=1218677082]
+layout_mode = 1
+offset_left = 11.0
+offset_top = 112.0
+offset_right = 91.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "排名:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankVal" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=799069120]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 112.0
+offset_right = 150.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsLbl" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=659022833]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 135.0
+offset_right = 96.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "战斗力:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsVal" type="Label" parent="TabChallengeView/EnemyCard1" unique_id=668544737]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 135.0
+offset_right = 150.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChallengeBtn" type="Button" parent="TabChallengeView/EnemyCard1" unique_id=1268274476]
+layout_mode = 1
+offset_left = 39.0
+offset_top = 159.3
+offset_right = 129.0
+offset_bottom = 207.3
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/EnemyCard1/ChallengeBtn" unique_id=1094895615]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"LadderBtnLabel17"
+text = "挑战"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnemyCard2" type="Control" parent="TabChallengeView" unique_id=267969670]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 390.7
+offset_top = 245.4
+offset_right = 559.3
+offset_bottom = 454.6
+mouse_filter = 2
+
+[node name="EnemyBg" type="TextureRect" parent="TabChallengeView/EnemyCard2" unique_id=809173953]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("6_e6ww8")
+expand_mode = 1
+
+[node name="HeadBg" type="TextureRect" parent="TabChallengeView/EnemyCard2" unique_id=1260062415]
+layout_mode = 1
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+texture = ExtResource("7_1hcj0")
+expand_mode = 1
+
+[node name="HeadHost" type="Control" parent="TabChallengeView/EnemyCard2" unique_id=524784706]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+
+[node name="LevelBg" type="TextureRect" parent="TabChallengeView/EnemyCard2" unique_id=1649568729]
+layout_mode = 1
+offset_left = 42.1
+offset_top = 55.6
+offset_right = 78.0
+offset_bottom = 86.1
+mouse_filter = 2
+texture = ExtResource("8_6ctu3")
+expand_mode = 1
+
+[node name="LevelLbl" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=1521255684]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 60.0
+offset_right = 80.0
+offset_bottom = 82.0
+theme_type_variation = &"LadderCreamLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NameLbl" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=1550144708]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 87.0
+offset_right = 144.0
+offset_bottom = 109.0
+theme_type_variation = &"LadderWhiteShadowLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankLbl" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=659205173]
+layout_mode = 1
+offset_left = 11.0
+offset_top = 112.0
+offset_right = 91.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "排名:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankVal" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=488338901]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 112.0
+offset_right = 150.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsLbl" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=1999050118]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 135.0
+offset_right = 96.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "战斗力:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsVal" type="Label" parent="TabChallengeView/EnemyCard2" unique_id=259110449]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 135.0
+offset_right = 150.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChallengeBtn" type="Button" parent="TabChallengeView/EnemyCard2" unique_id=709955504]
+layout_mode = 1
+offset_left = 39.0
+offset_top = 159.3
+offset_right = 129.0
+offset_bottom = 207.3
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/EnemyCard2/ChallengeBtn" unique_id=898825189]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"LadderBtnLabel17"
+text = "挑战"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnemyCard3" type="Control" parent="TabChallengeView" unique_id=506409606]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 575.7
+offset_top = 245.4
+offset_right = 744.3
+offset_bottom = 454.6
+mouse_filter = 2
+
+[node name="EnemyBg" type="TextureRect" parent="TabChallengeView/EnemyCard3" unique_id=776352239]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("6_e6ww8")
+expand_mode = 1
+
+[node name="HeadBg" type="TextureRect" parent="TabChallengeView/EnemyCard3" unique_id=645612890]
+layout_mode = 1
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+texture = ExtResource("7_1hcj0")
+expand_mode = 1
+
+[node name="HeadHost" type="Control" parent="TabChallengeView/EnemyCard3" unique_id=1093828360]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 44.2
+offset_top = 6.3
+offset_right = 123.8
+offset_bottom = 88.3
+mouse_filter = 2
+
+[node name="LevelBg" type="TextureRect" parent="TabChallengeView/EnemyCard3" unique_id=1436842360]
+layout_mode = 1
+offset_left = 42.1
+offset_top = 55.6
+offset_right = 78.0
+offset_bottom = 86.1
+mouse_filter = 2
+texture = ExtResource("8_6ctu3")
+expand_mode = 1
+
+[node name="LevelLbl" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=62809471]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 60.0
+offset_right = 80.0
+offset_bottom = 82.0
+theme_type_variation = &"LadderCreamLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="NameLbl" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=479473066]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 87.0
+offset_right = 144.0
+offset_bottom = 109.0
+theme_type_variation = &"LadderWhiteShadowLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankLbl" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=1064181771]
+layout_mode = 1
+offset_left = 11.0
+offset_top = 112.0
+offset_right = 91.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "排名:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankVal" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=2073523579]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 112.0
+offset_right = 150.0
+offset_bottom = 134.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsLbl" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=1252015723]
+layout_mode = 1
+offset_left = 16.0
+offset_top = 135.0
+offset_right = 96.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "战斗力:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GpsVal" type="Label" parent="TabChallengeView/EnemyCard3" unique_id=1304574182]
+layout_mode = 1
+offset_left = 90.0
+offset_top = 135.0
+offset_right = 150.0
+offset_bottom = 157.0
+theme_type_variation = &"LadderOrangeLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChallengeBtn" type="Button" parent="TabChallengeView/EnemyCard3" unique_id=693824247]
+layout_mode = 1
+offset_left = 39.0
+offset_top = 159.3
+offset_right = 129.0
+offset_bottom = 207.3
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/EnemyCard3/ChallengeBtn" unique_id=2037769960]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"LadderBtnLabel17"
+text = "挑战"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RefreshBtn" type="Button" parent="TabChallengeView" unique_id=989306962]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 61.0
+offset_top = 403.4
+offset_right = 190.5
+offset_bottom = 452.6
+theme_type_variation = &"LadderChangeButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/RefreshBtn" unique_id=1041973586]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"LadderChangeBtnLabel17"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeroSlot1" type="Control" parent="TabChallengeView" unique_id=606242801]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 147.0
+offset_top = 82.0
+offset_right = 251.0
+offset_bottom = 186.0
+mouse_filter = 2
+
+[node name="HeroSlot2" type="Control" parent="TabChallengeView" unique_id=1800558168]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 238.0
+offset_top = 82.0
+offset_right = 342.0
+offset_bottom = 186.0
+mouse_filter = 2
+
+[node name="HeroSlot3" type="Control" parent="TabChallengeView" unique_id=55318099]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 329.0
+offset_top = 82.0
+offset_right = 433.0
+offset_bottom = 186.0
+mouse_filter = 2
+
+[node name="HeroSlot4" type="Control" parent="TabChallengeView" unique_id=464352619]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 421.0
+offset_top = 82.0
+offset_right = 525.0
+offset_bottom = 186.0
+mouse_filter = 2
+
+[node name="HeroSlot5" type="Control" parent="TabChallengeView" unique_id=16623738]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 513.0
+offset_top = 82.0
+offset_right = 617.0
+offset_bottom = 186.0
+mouse_filter = 2
+
+[node name="LineupTitleLbl" type="Label" parent="TabChallengeView" unique_id=609362232]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 124.0
+offset_right = 200.0
+offset_bottom = 148.0
+theme_type_variation = &"LadderDarkLabel20"
+text = "防守阵容:"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankValue" type="Control" parent="TabChallengeView" unique_id=1575406013]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 150.0
+offset_top = 180.0
+offset_right = 260.0
+offset_bottom = 226.0
+mouse_filter = 2
+
+[node name="SetLineupBtn" type="Button" parent="TabChallengeView" unique_id=273500844]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 610.25
+offset_top = 128.4
+offset_right = 739.75
+offset_bottom = 177.6
+theme_type_variation = &"LadderWideButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/SetLineupBtn" unique_id=961858882]
+layout_mode = 0
+offset_right = 129.5
+offset_bottom = 49.2
+theme_type_variation = &"LadderBtnLabel17"
+text = "调整"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RuleBtn" type="Button" parent="TabChallengeView" unique_id=2012360839]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 313.0
+offset_top = 189.0
+offset_right = 409.0
+offset_bottom = 237.0
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/RuleBtn" unique_id=2076368375]
+layout_mode = 0
+offset_right = 96.0
+offset_bottom = 48.0
+theme_type_variation = &"LadderBtnLabel17"
+text = "规则说明"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankboardBtn" type="Button" parent="TabChallengeView" unique_id=1902811939]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 416.0
+offset_top = 189.0
+offset_right = 506.0
+offset_bottom = 237.0
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/RankboardBtn" unique_id=1687321895]
+layout_mode = 0
+offset_right = 90.0
+offset_bottom = 48.0
+theme_type_variation = &"LadderBtnLabel17"
+text = "排行榜"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RecordBtn" type="Button" parent="TabChallengeView" unique_id=1107636431]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 510.0
+offset_top = 189.0
+offset_right = 606.0
+offset_bottom = 237.0
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/RecordBtn" unique_id=535872715]
+layout_mode = 0
+offset_right = 96.0
+offset_bottom = 48.0
+theme_type_variation = &"LadderBtnLabel17"
+text = "对战记录"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ShopBtn" type="Button" parent="TabChallengeView" unique_id=2146148532]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 610.25
+offset_top = 188.4
+offset_right = 739.75
+offset_bottom = 237.6
+theme_type_variation = &"LadderTabButton"
+
+[node name="BtnLbl" type="Label" parent="TabChallengeView/ShopBtn" unique_id=1091445034]
+layout_mode = 0
+offset_right = 129.5
+offset_bottom = 49.2
+theme_type_variation = &"LadderBtnLabel17"
+text = "兑换奖励"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PriceBar" type="Control" parent="TabChallengeView" unique_id=1643521128]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+offset_left = 64.5
+offset_top = 357.5
+offset_right = 187.5
+offset_bottom = 390.5
+mouse_filter = 2
+
+[node name="PriceBg" type="TextureRect" parent="TabChallengeView/PriceBar" unique_id=1537738231]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("9_571j6")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DiamondIcon" type="TextureRect" parent="TabChallengeView/PriceBar" unique_id=1084322451]
+layout_mode = 0
+offset_left = 2.5
+offset_top = 4.0
+offset_right = 28.5
+offset_bottom = 29.0
+mouse_filter = 2
+texture = ExtResource("10_4lq6v")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CostLbl" type="Label" parent="TabChallengeView/PriceBar" unique_id=318365552]
+layout_mode = 0
+offset_left = 60.0
+offset_right = 123.0
+offset_bottom = 33.0
+theme_type_variation = &"LadderPriceLabel20"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabRankboardView" type="Control" parent="." unique_id=1587681795]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RankFrame" type="NinePatchRect" parent="TabRankboardView" unique_id=1884420189]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 135.0
+offset_top = 42.5
+offset_right = 665.0
+offset_bottom = 457.5
+texture = ExtResource("11_5d04m")
+patch_margin_left = 12
+patch_margin_top = 378
+patch_margin_right = 500
+patch_margin_bottom = 16
+
+[node name="TitleBg" type="TextureRect" parent="TabRankboardView" unique_id=1646821745]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 226.5
+offset_top = 20.2
+offset_right = 573.5
+offset_bottom = 81.8
+mouse_filter = 2
+texture = ExtResource("12_acw7r")
+expand_mode = 1
+
+[node name="TitleLbl" type="Label" parent="TabRankboardView" unique_id=1592749000]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 320.0
+offset_top = 39.0
+offset_right = 480.0
+offset_bottom = 63.0
+theme_type_variation = &"LadderTitleLabel24"
+text = "英雄榜"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RankScroll" type="ScrollContainer" parent="TabRankboardView" unique_id=1636863941]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 165.0
+offset_top = 80.0
+offset_right = 635.0
+offset_bottom = 440.0
+horizontal_scroll_mode = 0
+
+[node name="RankboardHost" type="Control" parent="TabRankboardView/RankScroll" unique_id=831556782]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CloseRankBtn" type="TextureButton" parent="TabRankboardView" unique_id=1612644880]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 624.65
+offset_top = 34.25
+offset_right = 675.35
+offset_bottom = 85.75
+texture_normal = ExtResource("3_tkuj2")
+texture_pressed = ExtResource("4_el0p6")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabRecordsView" type="Control" parent="." unique_id=2037097240]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RecTitleBg" type="TextureRect" parent="TabRecordsView" unique_id=79487682]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 139.8
+offset_top = 20.5
+offset_right = 660.2
+offset_bottom = 59.5
+mouse_filter = 2
+texture = ExtResource("13_fgpmm")
+expand_mode = 1
+
+[node name="RecTitleLbl" type="Label" parent="TabRecordsView" unique_id=1333636981]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 320.0
+offset_top = 28.0
+offset_right = 480.0
+offset_bottom = 52.0
+theme_type_variation = &"LadderTitleLabel24"
+text = "对战记录"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RecFrame" type="TextureRect" parent="TabRecordsView" unique_id=1824225400]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 126.8
+offset_top = 63.5
+offset_right = 673.2
+offset_bottom = 468.5
+mouse_filter = 2
+texture = ExtResource("11_5d04m")
+expand_mode = 1
+
+[node name="RecScroll" type="ScrollContainer" parent="TabRecordsView" unique_id=602537373]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 160.0
+offset_top = 80.0
+offset_right = 650.0
+offset_bottom = 440.0
+horizontal_scroll_mode = 0
+
+[node name="RecordsHost" type="Control" parent="TabRecordsView/RecScroll" unique_id=1041685203]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CloseRecBtn" type="TextureButton" parent="TabRecordsView" unique_id=1779129449]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 624.65
+offset_top = 34.25
+offset_right = 675.35
+offset_bottom = 85.75
+texture_normal = ExtResource("3_tkuj2")
+texture_pressed = ExtResource("4_el0p6")
+ignore_texture_size = true
+stretch_mode = 0

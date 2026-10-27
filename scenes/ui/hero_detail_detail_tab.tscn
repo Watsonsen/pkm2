@@ -1,0 +1,152 @@
+[gd_scene format=3 uid="uid://bd3d7uacbb02s"]
+
+[ext_resource type="Texture2D" uid="uid://c6hc85fvmusfb" path="res://assets/ui/alpha/HVGA/herodetail-detail-popup.png" id="1_popup"]
+[ext_resource type="Texture2D" uid="uid://bg45lhxlatfcx" path="res://assets/ui/alpha/HVGA/herodetail-title-mark.png" id="2_titlemark"]
+
+[node name="TabDetailView" type="Control" unique_id=923261678]
+unique_name_in_owner = true
+z_index = 2
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+; 本地=源 container 系直译（attributes.lua create 时 container(48,0) 仅为初始位，pop endPos
+; =ccp(-200,0)（window.lua:430）覆盖之 → 显示止态 container=源局部+(-200)，与 skill tab 同构）。
+offset_left = -200.0
+offset_right = -200.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EditPlaceholder" type="ReferenceRect" parent="." unique_id=983757955]
+layout_mode = 0
+offset_left = 256.0
+offset_top = 17.5
+offset_right = 544.0
+offset_bottom = 462.5
+mouse_filter = 2
+border_color = Color(0, 1, 0.7, 1)
+border_width = 2.0
+
+[node name="PopupBg" type="TextureRect" parent="." unique_id=794667800]
+layout_mode = 0
+; 源 attributes.lua:600 bg herodetail-detail-popup ccp(400,240) 挂 container（pop 止态 -200 与
+; skill 同构，create 时 container(48,0) 被 endPos 覆盖，不并入）；显示=纹理 369×570÷CS=288×445
+;（旧值 369×570 纹理直用，底缘 605 溢屏 125px；一度并入 +48 的 304..592 已撤——显示止态源全局
+; 中心 (200,240)，48 系 popBack 退出位非显示位，2026-08-22 二轮复核纠正）。
+offset_left = 256.0
+offset_top = 17.5
+offset_right = 544.0
+offset_bottom = 462.5
+mouse_filter = 2
+texture = ExtResource("1_popup")
+expand_mode = 1
+
+[node name="AttribListHost" type="ScrollContainer" parent="." unique_id=901391735]
+unique_name_in_owner = true
+layout_mode = 0
+; 源 attributes.lua:627 draglist cliprect CCRectMake(18,15,249,415) 相对 popup 左下角
+; → Cocos 显示止态全局 (74,32.5)-(323,447.5) → 本地（+200 归一）(274,32.5)-(523,447.5)。
+offset_left = 274.0
+offset_top = 32.5
+offset_right = 523.0
+offset_bottom = 447.5
+mouse_filter = 0
+horizontal_scroll_mode = 0
+
+[node name="AttribVBox" type="VBoxContainer" parent="AttribListHost" unique_id=660391980]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+; 以下 PH_ 占位仅编辑器预览用，运行时 fill_attributes 全清重建。标题装饰真实结构（2026-08-30
+; 修）= CenterContainer 内 mark(225.6x11.7 ÷CS) 与 label 同中心叠放（源 attributes.lua:29-44
+; 同 height 基准），占位仍是旧两行结构，编辑器所见与运行时不一致，待编辑器会话重排。
+[node name="PH_TitleMark1" type="TextureRect" parent="AttribListHost/AttribVBox" unique_id=1499227484]
+custom_minimum_size = Vector2(80, 12)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("2_titlemark")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="PH_Title1" type="Label" parent="AttribListHost/AttribVBox" unique_id=1330822014]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.984, 0.808, 0.063, 1)
+theme_override_font_sizes/font_size = 20
+text = "英雄简介"
+
+[node name="PH_Desc" type="Label" parent="AttribListHost/AttribVBox" unique_id=1727850590]
+custom_minimum_size = Vector2(235, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "坦克型全能英雄，可作为护盾、攻击者和控制者使用，团队无可争议的领袖。"
+autowrap_mode = 3
+
+[node name="PH_TitleMark2" type="TextureRect" parent="AttribListHost/AttribVBox" unique_id=1424245487]
+custom_minimum_size = Vector2(80, 12)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("2_titlemark")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="PH_Title2" type="Label" parent="AttribListHost/AttribVBox" unique_id=232245959]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.984, 0.808, 0.063, 1)
+theme_override_font_sizes/font_size = 20
+text = "英雄属性"
+
+[node name="PH_Attr1" type="HBoxContainer" parent="AttribListHost/AttribVBox" unique_id=1072016359]
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="Name" type="Label" parent="AttribListHost/AttribVBox/PH_Attr1" unique_id=989430934]
+layout_mode = 2
+theme_type_variation = &"AccentGoldRowLabel"
+text = "物理攻击力:"
+
+[node name="Base" type="Label" parent="AttribListHost/AttribVBox/PH_Attr1" unique_id=2101437772]
+layout_mode = 2
+theme_type_variation = &"DetailBaseLabel"
+text = "1200"
+
+[node name="Add" type="Label" parent="AttribListHost/AttribVBox/PH_Attr1" unique_id=1839651202]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.627, 0.882, 0.102, 1)
+theme_override_font_sizes/font_size = 16
+text = "+50"
+
+[node name="PH_Attr2" type="HBoxContainer" parent="AttribListHost/AttribVBox" unique_id=1061742039]
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="Name" type="Label" parent="AttribListHost/AttribVBox/PH_Attr2" unique_id=1450862385]
+layout_mode = 2
+theme_type_variation = &"AccentGoldRowLabel"
+text = "生命值:"
+
+[node name="Base" type="Label" parent="AttribListHost/AttribVBox/PH_Attr2" unique_id=1547580564]
+layout_mode = 2
+theme_type_variation = &"DetailBaseLabel"
+text = "8000"
+
+[node name="PH_Attr3" type="HBoxContainer" parent="AttribListHost/AttribVBox" unique_id=232608572]
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="Name" type="Label" parent="AttribListHost/AttribVBox/PH_Attr3" unique_id=1927931423]
+layout_mode = 2
+theme_type_variation = &"AccentGoldRowLabel"
+text = "护甲:"
+
+[node name="Base" type="Label" parent="AttribListHost/AttribVBox/PH_Attr3" unique_id=1199727965]
+layout_mode = 2
+theme_type_variation = &"DetailBaseLabel"
+text = "200"

@@ -1,0 +1,91 @@
+class_name StageData
+extends RefCounted
+
+## 关卡静态数据（Data 层）：从 Stage 表加载。掉落 7 槽 + 概率。
+
+const DROP_SLOT_COUNT: int = 7
+const DEFAULT_DROP_PROB: int = 100
+const SWEEP_DEFAULT_PROB: int = 34
+const DUNGEON_ID_MIN: int = 50001
+const DUNGEON_ID_MAX: int = 53021
+const DUNGEON_OLD_RANGES: Array = [[40001, 40021], [41001, 41021], [42001, 42021], [43001, 43021]]
+
+
+## Data 层自含判定（不依赖 Systems/stage_account，治分层）；副本关读 StageDungeon 表。
+static func is_dungeon_stage(sid: int) -> bool:
+	if sid >= DUNGEON_ID_MIN and sid <= DUNGEON_ID_MAX:
+		return true
+	for rng in DUNGEON_OLD_RANGES:
+		if sid >= int(rng[0]) and sid <= int(rng[1]):
+			return true
+	return false
+
+
+## 统一关卡行查询（获取途径显示用）：普通/精英/活动关查 Stage 表，查空回落 StageDungeon
+## 表（副本关 50001+ 如 ch203 lich 关）。返回 {row: Dictionary, dungeon: bool}——dungeon
+## 标记调用方用于区分显示（组名替代"第X章"、不标"精英"、不做 MaxChapter 过滤）。
+static func query_stage_row(sid: int, cm: Variant) -> Dictionary:
+	var table: Dictionary = cm.get_raw_table(&"Stage")
+	if table.has(str(sid)):
+		return {"row": table[str(sid)], "dungeon": false}
+	var dtable: Dictionary = cm.get_raw_table(&"StageDungeon")
+	if dtable.has(str(sid)):
+		return {"row": dtable[str(sid)], "dungeon": true}
+	return {"row": {}, "dungeon": false}
+
+
+## 副本关所属组名（LSTR key，如 DUNGEON.SERPENTSHRINE）→ 获取途径 title 用；空串=非副本/缺组。
+static func get_dungeon_group_name(sid: int, cm: Variant) -> String:
+	var gid: int = int(query_stage_row(sid, cm)["row"].get("Stage Group", 0))
+	var group_row: Dictionary = cm.get_raw_table(&"ActStageGroupDungeon").get(str(gid), {})
+	return String(group_row.get("Group Name", ""))
+
+var stage_id: int = 0
+var chapter_id: int = 0
+var vitality_cost: int = 0
+var vit_return: int = 0
+var unlock_level: int = 1
+var require_stage: int = 0
+var require_stars: int = 0
+var exp_reward: int = 0
+var money_reward: int = 0
+var monster_level: int = 0
+var difficulty: int = 0
+var key_stage: bool = false
+var waves: int = 1
+var heroexp_reward: int = 0
+var fail_exp_reward: int = 0
+var drops: Array[Dictionary] = []  # {item_id, probability(0-100)}；Pro 缺省 100（generateLoots 普通通关）
+var sweep_drops: Array[Dictionary] = []  # 扫荡掉落，probability Pro 缺省 34（照源 sweep :1614，同 7 槽仅缺省不同）
+
+static func from_config(cm: ConfigManager, sid: int) -> StageData:
+	var data := StageData.new()
+	data.stage_id = sid
+	var table: StringName = &"StageDungeon" if is_dungeon_stage(sid) else &"Stage"
+	# 全字段直读 raw_table 容错（Lua nil 安全范式，源 generateLoots :391-393）：
+	# StageDungeon 表无 Money Reward（dungeon 不给金币）+ diff 变体可能缺 Vit Return/Fail Exp Reward，
+	# get_int 字段缺失 push_error 对副本关过严，统一 raw_table.get 默认 0。
+	var stage_row: Dictionary = cm.get_raw_table(table).get(str(sid), {})
+	data.chapter_id = int(stage_row.get("Chapter ID", 0))
+	data.vitality_cost = int(stage_row.get("Vitality Cost", 0))
+	data.vit_return = int(stage_row.get("Vit Return", 0))
+	data.unlock_level = int(stage_row.get("Unlock Level", 1))
+	data.require_stage = int(stage_row.get("Require Stage", 0))
+	data.require_stars = int(stage_row.get("Require Stars", 0))
+	data.exp_reward = int(stage_row.get("Exp Reward", 0))
+	data.money_reward = int(stage_row.get("Money Reward", 0))
+	data.monster_level = int(stage_row.get("Monster Level", 0))
+	data.difficulty = int(stage_row.get("Difficulty", 0))
+	data.key_stage = bool(stage_row.get("Key Stage", false))
+	data.waves = int(stage_row.get("Waves", 1))
+	data.heroexp_reward = int(stage_row.get("Heroexp Reward", 0))
+	data.fail_exp_reward = int(stage_row.get("Fail Exp Reward", 0))
+	var i: int = 1
+	while i <= DROP_SLOT_COUNT:
+		var item_id: int = int(stage_row.get("UI reward" + str(i), 0))
+		if item_id != 0:
+			var pro_key: String = "UI reward" + str(i) + " Pro"
+			data.drops.append({"item_id": item_id, "probability": int(stage_row.get(pro_key, DEFAULT_DROP_PROB))})
+			data.sweep_drops.append({"item_id": item_id, "probability": int(stage_row.get(pro_key, SWEEP_DEFAULT_PROB))})
+		i += 1
+	return data

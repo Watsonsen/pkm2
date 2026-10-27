@@ -1,0 +1,156 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/common/common_alert_bg.png" id="1_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herodetail-title-mark.png" id="2_titlebg"]
+
+; 邮件附件溢满弹窗静态树（批 2 Task 5 两件套化，2026-08-16）。照源
+; uieditor/mailoverfull.lua 声明表直译（layout.position=中心点 anchor(0.5,0.5)）+
+; overfull.lua createContent:28-110（desc 滚动区）：
+; frame Scale9Sprite common_alert_bg(593x252px) cap(66.41,93.75,335.94,7.81) scaleSize
+; 463.28x363.28 中心 (400.78,216.41) → NinePatchRect（B 类误用修正：旧 TextureRect 整拉
+; 高度 196.68→363.28 四角变形；patch 纹理像素直读 top=252-93.75-7.81=150.44
+; bottom=93.75 left=66.41 right=593-66.41-335.94=190.65，显示尺寸 463x363 保持）。
+; title_bg Scale9 herodetail-title-mark(289x15px) cap(78.13,0,69.53,11.72) scaleSize
+; 359.38x11.72 中心 (400,355.47) → NinePatchRect（宽向 1.59x 拉伸保角，top=3.28
+; right=141.34）；title size23 ccc3(253,215,17) 中心 (400,357.03)。
+; left/right DGButton sell_number_button cap(15.63,15.63,19.53,15.63) scaleSize
+; 121.09x54.69 中心 (311.72,88.28)/(487.5,89.06) → Button theme variation
+; MailOverfullBtn（旧运行时 UiScale9Button.apply_with_label 退役，text 承载文案）。
+; desc 滚动区源 cliprect DGRectMake(65,130,455,230)（readnode:13-17 ×0.78125 →
+; (50.78,101.56,355.47,179.69)）——C1 修正：cliprect 是 frame 局部坐标（draglist
+; container=self.ui.frame，原点=frame 左下角 (169.14,34.77) y-up），非场景空间；
+; +frame 原点再 to_godot → ScrollContainer (299.92,243.98)-(655.39,423.67)；
+; 内容 ChaosNode offset=3 垂直流 → DescVBox separation 3
+; （desc1 宽 DGSizeMake(400,0)=312.5 左对齐 autowrap；grid 4 列源 :68-70 静态化，
+; fill 只挂溢出物品 icon；desc2 在前 desc3 在后照源 ChaosNode 顺序）。
+
+[node name="MailOverfullPopupContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0, 0, 0, 0.5)
+
+; frame（源 Scale9 → NinePatch，显示 463.28x363.28 保持）
+[node name="Frame" type="NinePatchRect" parent="."]
+layout_mode = 3
+offset_left = 169.14
+offset_top = 81.95
+offset_right = 632.42
+offset_bottom = 445.23
+texture = ExtResource("1_frame")
+patch_margin_left = 52
+patch_margin_top = 117
+patch_margin_right = 149
+patch_margin_bottom = 73
+mouse_filter = 2
+
+; title_bg（源 Scale9 → NinePatch，宽向拉伸 1.59x 保角）
+[node name="TitleBg" type="NinePatchRect" parent="."]
+layout_mode = 3
+offset_left = 220.31
+offset_top = 118.67
+offset_right = 579.69
+offset_bottom = 130.39
+texture = ExtResource("2_titlebg")
+patch_margin_left = 61
+patch_margin_top = 3
+patch_margin_right = 110
+patch_margin_bottom = 0
+mouse_filter = 2
+
+[node name="TitleLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 220.0
+offset_top = 105.97
+offset_right = 580.0
+offset_bottom = 139.97
+theme_type_variation = &"MailOverfullTitleLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "超额提醒"
+
+; left_button「强行领取」（源 DGButton z=2，text fill LSTR）
+[node name="LeftBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 251.18
+offset_top = 364.38
+offset_right = 372.27
+offset_bottom = 419.07
+theme_type_variation = &"MailOverfullBtn"
+text = "强行领取"
+
+; right_button「稍后领取」
+[node name="RightBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 426.96
+offset_top = 363.59
+offset_right = 548.05
+offset_bottom = 418.28
+theme_type_variation = &"MailOverfullBtn"
+text = "稍后领取"
+
+; desc 滚动区（源 draglist cliprect DG×0.78125 + frame 左下角原点 (169.14,34.77)，
+; frame 局部 y-up → to_godot 翻转；noshade 无渐变遮罩）
+[node name="DescScroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 219.92
+offset_top = 163.98
+offset_right = 575.39
+offset_bottom = 343.67
+horizontal_scroll_mode = 0
+
+[node name="DescVBox" type="VBoxContainer" parent="DescScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+; r_1_1（源 dimension DG(400,0)=312.5 左对齐 autowrap，text fill LSTR）
+[node name="Desc1Label" type="Label" parent="DescScroll/DescVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(312.5, 0)
+theme_type_variation = &"MailOverfullDescLabel"
+mouse_filter = 2
+autowrap_mode = 3
+text = "部分道具将超出可携带上限(999个)。如果强行领取，将损失超出的道具。"
+
+; r_2_1「超出：」
+[node name="Desc2Label" type="Label" parent="DescScroll/DescVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MailOverfullDescLabel"
+mouse_filter = 2
+text = "超出："
+
+; 溢出物品 4 列网格（源 :68-70 4 列；fill 挂 create_icon WithAmount 60）
+[node name="OverfullGrid" type="GridContainer" parent="DescScroll/DescVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 4
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+mouse_filter = 2
+
+; r_3_1「是否继续领取？」
+[node name="Desc3Label" type="Label" parent="DescScroll/DescVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MailOverfullDescLabel"
+mouse_filter = 2
+text = "是否继续领取？"

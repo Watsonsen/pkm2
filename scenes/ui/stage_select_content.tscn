@@ -1,0 +1,206 @@
+; stage_select 两件套 content 底板（批 3 Task 5，2026-08-16）。
+; 照源 ui/stageselect.lua 静态段直译：createModeButton:725（buttonBg/normal/elite/guild
+; toggle + label）、createChapterButton:705（prev/next 箭头）；frame/title_bg/title label
+; 与 map layer/chapter dots 是数据驱动动态层 + crossfade 动画节点（mode/章节切换依赖
+; 节点重建，照源 createFrame/createTitle 重建+fade 模式），由 stage_select_fills.gd
+; 构造挂 %MapLayerHost/%FrameLayer/%DotContainer——旧死占位 FramePlaceholder/
+; TitleBgPlaceholder（运行时被 init 清掉的双头管理债）删除。
+; 贴图口径（批3定稿）：显示 = 像素÷CS×条目CS（Prescaled=true 才施加）；本板贴图均
+; 无条目 → 像素÷1.28125。坐标：cocos(800×480 左下) → godot = (x, 480-y)（viewport
+; 迁移后统一口径；旧"(x+80,560-y)"系 960×640 信箱映射残留，2026-08-22 巡检勘误）。
+; toggle 129×67px÷CS×0.9（源 refreshModeButtonPosition :245-247 setScale(0.9)；
+; normal(345,350)/elite(455,350)/guild(489,350) 为 guild 隐藏布局，源 :240-243）。
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade_Button_bg.png" id="2_modebg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/elitetoggle-ns.png" id="3_toggle"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/prevchap.png" id="4_prev"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/nextchap.png" id="5_next"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn.png" id="6_back"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="7_backp"]
+
+[node name="StageSelectContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 项目适配（源 pushScene 场景 framework.lua:749 自动加全屏 bg.jpg → PopWindow 弹窗化自补）
+[node name="FrameworkBg" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_right = 800.0
+offset_bottom = 480.0
+texture = ExtResource("1_bg")
+expand_mode = 1
+mouse_filter = 2
+
+; 动态 map layer 挂载点（源 clipLayer ClippingNode；MapLayer 由 fills 建于其下，
+; 声明序 map(z1) < frame(z5) < mode(z20)，title z21 由 fills z_index 200 压回）
+[node name="MapLayerHost" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FrameLayer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 源 modeContainer z=20（createModeButton :728 mainLayer:addChild(modeContainer, 20)）
+[node name="ModeLayer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 源 buttonBg crusade_Button_bg 874×74px÷CS 中心 ccp(400,355)→(480,205)
+[node name="ModeBg" type="TextureRect" parent="ModeLayer"]
+layout_mode = 0
+offset_left = 58.93
+offset_top = 96.12
+offset_right = 741.07
+offset_bottom = 153.88
+texture = ExtResource("2_modebg")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 normal toggle ccp(345,350)→中心(425,210)；129×67px÷CS×0.9 = 90.61×47.06
+[node name="ModeNormalBtn" type="TextureButton" parent="ModeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 299.7
+offset_top = 106.47
+offset_right = 390.31
+offset_bottom = 153.53
+texture_normal = ExtResource("3_toggle")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="ModeNormalLabel" type="Label" parent="ModeLayer/ModeNormalBtn"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"WhiteLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; 源 elite toggle ccp(455,350)→中心(535,210)
+[node name="ModeEliteBtn" type="TextureButton" parent="ModeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 409.7
+offset_top = 106.47
+offset_right = 500.31
+offset_bottom = 153.53
+texture_normal = ExtResource("3_toggle")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="ModeEliteLabel" type="Label" parent="ModeLayer/ModeEliteBtn"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"WhiteLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; 源 guild toggle ccp(489,350)→中心(569,210)；visible=false（源 :269-270 禁止团队副本，
+; updateGuildInstanceButton 单机化无公会恒隐藏）
+[node name="ModeGuildBtn" type="TextureButton" parent="ModeLayer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 443.7
+offset_top = 106.47
+offset_right = 534.31
+offset_bottom = 153.53
+texture_normal = ExtResource("3_toggle")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="ModeGuildLabel" type="Label" parent="ModeLayer/ModeGuildBtn"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"WhiteLabel18"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; 动态 chapter dots 挂载点（源 dotContainer z=30，数量 1-13 随进度由 fills 建）
+[node name="DotContainer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 源 createChapterButton :706-709 — prev ccp(78,215)→中心(158,345)；55×75px÷CS = 42.93×58.54
+[node name="PrevArrow" type="TextureButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 56.54
+offset_top = 235.73
+offset_right = 99.46
+offset_bottom = 294.27
+texture_normal = ExtResource("4_prev")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 源 next ccp(720,215)→中心(800,345)
+[node name="NextArrow" type="TextureButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 698.54
+offset_top = 235.73
+offset_right = 741.46
+offset_bottom = 294.27
+texture_normal = ExtResource("5_next")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 项目适配（单机化 pushScene→PopWindow 退出途径；74×75px÷CS = 57.76×58.54）
+[node name="CloseBtn" type="TextureButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.76
+offset_bottom = 73.54
+texture_normal = ExtResource("6_back")
+texture_pressed = ExtResource("7_backp")
+ignore_texture_size = true
+stretch_mode = 0

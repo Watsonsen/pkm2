@@ -1,0 +1,80 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/dialogue_bottom_shadow.png" id="1_shadow"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/dialogue_content_bg.png" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/dialogue_arrow.png" id="3_arrow"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/dialogue_name_bg.png" id="4_namebg"]
+
+[node name="StoryViewContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="ShadowBg" type="TextureRect" parent="."]
+layout_mode = 3
+offset_left = -80.0
+offset_top = 120.0
+offset_right = 880.0
+offset_bottom = 720.0
+texture = ExtResource("1_shadow")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="StoryBg" type="TextureRect" parent="."]
+layout_mode = 3
+offset_left = 34.73
+offset_top = 362.24
+offset_right = 765.27
+offset_bottom = 477.76
+texture = ExtResource("2_bg")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Arrow" type="TextureRect" parent="."]
+layout_mode = 3
+offset_left = 698.29
+offset_top = 429.46
+offset_right = 721.71
+offset_bottom = 450.54
+texture = ExtResource("3_arrow")
+expand_mode = 1
+modulate = Color(1, 1, 1, 0.5)
+mouse_filter = 2
+
+[node name="NameFrame" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 107.07
+offset_top = 336.2
+offset_right = 352.93
+offset_bottom = 383.8
+texture = ExtResource("4_namebg")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Name" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 180.0
+offset_top = 348.0
+offset_right = 380.0
+offset_bottom = 378.0
+theme_override_colors/font_color = Color(0.458824, 0.301961, 0, 1)
+theme_override_font_sizes/font_size = 24
+mouse_filter = 2
+text = ""
+
+[node name="Content" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 400.0
+offset_top = 420.0
+offset_right = 1000.0
+offset_bottom = 540.0
+theme_override_colors/font_color = Color(0.458824, 0.301961, 0, 1)
+theme_override_font_sizes/font_size = 22
+mouse_filter = 2
+horizontal_alignment = 0
+text = ""

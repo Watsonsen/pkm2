@@ -1,0 +1,57 @@
+# Godot 4 编辑器/导入缓存（可重建，不入库）
+.godot/
+
+# Python 工具缓存（lint/pytest）
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# 视觉验收临时截图
+screenshots/
+# 根目录散落调试截图（MCP/验收临时产物，不入库；项目资源在 assets/）
+/*.png
+/*.png.import
+
+# 会话临时产物
+*.tmp
+
+# plan/worktree 工具临时产物
+.zcode/
+
+# brainstorming 视觉伴侣临时产物
+.superpowers/
+
+# OS
+Thumbs.db
+.DS_Store
+.claude/worktrees/
+
+# NVIDIA 驱动 shader 缓存（Godot Windows 运行时意外写到项目根的空目录产物）
+NVIDIA Corporation/
+
+# 架构审查工作产物（diff 输出/对照脚本，本地工具产物不入库；2026-09-12 体检出库）
+/_audit/
+
+# 重构临时截图/工具产物（不入库）
+tools/refactor/
+
+# video-agent-kit 录屏取证临时产物（帧目录/对比图，仅本地排障用）
+.video_agent/
+
+# ZCode MCP 配置（含本机 node/项目绝对路径，环境专属不入库；从 .agents/mcp.json.example 复制后改）
+.agents/mcp.json
+
+# 开发过程文档不入库（2026-09-28 用户拍板不上传 GitHub；本地保留，正式记录走知识库 vault）
+# 根目录 *.md 全忽略，白名单只放工程配置两件；docs/ 整目录（superpowers 计划/报告 + 验收截图）
+/*.md
+!AGENTS.md
+!CLAUDE.md
+!README.md
+/docs/
+
+# Android 导出产物（APK/AAB 不入库，走本地 build/ 目录）
+/build/
+
+# ch203 生图原始产物（Comfy 直出大图，后处理进 assets/ui/lich/，不入库）
+.lich_art_raw/

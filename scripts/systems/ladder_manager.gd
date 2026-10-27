@@ -1,0 +1,380 @@
+class_name LadderManager
+extends RefCounted
+
+## 天梯/PVP（Logic 层）— 照源 local_server.lua:3013-3429 ladder handler + generateAiPlayer(:3013)。
+## 单机 NPC PVP：AI 对手生成（PVPEmeny 表查 Hero1-5，本项目 JSON 无 Hero 字段 → fallback Unit 表
+## Type!=Boss 随机 3-5，照源 :3047-3070）+ 11 子命令（open_panel/apply_opponent/start_battle/end_battle/
+## buy_battle_chance/clear_battle_cd/query_records/query_rankborad/query_oppo/set_lineup/query_rankboard）。
+## pvp 状态本类持有（照源 player._pvp，独立避 player_data 行数超）。阶段 2 PVP 战斗接入；阶段 3 UI。
+
+const PVP_NAMES: Array[String] = [
+	"亚历山大","贝奥武夫","克里斯蒂娜","达芙妮","埃里克","菲奥娜","加雷斯","海伦娜","伊莎贝拉","贾斯汀",
+	"凯瑟琳","莱昂纳多","米开朗基罗","娜塔莎","奥利维亚","帕特里克","昆廷","罗莎琳德","塞巴斯蒂安","特里斯坦",
+	"乌苏拉","薇薇安","沃尔特","谢丽尔","尤里乌斯","赵云","关羽","张飞","诸葛亮","周瑜",
+	"吕布","貂蝉","孙策","马超","黄忠",
+]
+const AI_NAMES: Array[String] = [
+	"暗影猎手","龙骑士","风暴法师","圣光骑士","血魔领主","冰霜女王","烈焰术士","大地守卫","幽灵刺客","雷霆战神",
+	"月光游侠","黑暗领主","星辰法师","铁甲战士","毒蛇猎手",
+]
+const RANK_INIT: int = 1001
+# 每日基础挑战次数（源 5：pvp.lua:3153 分母硬编码 5 / LEFT_COUNT_DEFAULT；2026-10-09
+# 用户拍板改 10，受控偏离——购买回满/每日重置/显示分母同源走本常量）。
+const LEFT_COUNT_DEFAULT: int = 10
+const OPPONENT_COUNT: int = 3
+const OPPONENT_RANK_BASE: int = 50
+const BOARD_SIZE: int = 20
+const REWARD_MIN: int = 10
+const REWARD_BASE: int = 100
+# 最高排名奖励（源 down.proto end_battle._best_rank_reward 服务端下发，算法无源码；源 UI
+# stagedone pvpLayer 用 rmbicon 计价=钻石；源 pvp 规则文案「根据进步幅度而不同,每次至少
+# 获得1钻石」）。2026-10-11 二次拍板（群反馈 #13）：固定 20 钻 → 按进步幅度 = 每提升
+# BEST_RANK_PER_DIAMOND 名 1 钻、至少 1 钻、上限 BEST_RANK_DIAMOND_MAX；仅刷新历史最高
+# 才发（源文案「升至自己的历史最高排名时」一次性），未刷新为 0。View 凭 >0 追弹奖励窗。
+const BEST_RANK_PER_DIAMOND: int = 10
+const BEST_RANK_DIAMOND_MAX: int = 100
+const CLEAR_CD_COST: int = 50
+const BUY_COST_DEFAULT: int = 50
+const RECORDS_MAX: int = 20
+const LEVEL_DELTA_MIN: int = -3
+const LEVEL_DELTA_MAX: int = 3
+const LEVEL_CAP_OFFSET: int = 5
+const AVATAR_MAX: int = 8
+const VIP_DIVISOR: int = 20
+const VIP_CAP: int = 5
+const HERO_COUNT_MIN: int = 3
+const HERO_COUNT_MAX: int = 5
+const STARS_DIVISOR: int = 15
+const RANK_DIVISOR: int = 10
+const HERO_RANK_MIN: int = 5
+const HERO_RANK_MAX: int = 22
+const GS_PER_LEVEL: int = 10
+const GS_PER_STAR: int = 50
+const GS_PER_RANK: int = 30
+const USER_ID_BASE: int = 10000
+const LEVEL_HERO_DELTA_MAX: int = 2
+const LEVEL_FALLBACK_DELTA_MAX: int = 3
+const RSEED_MAX: int = 999999
+const HERO_FIELD_COUNT: int = 5
+const STARS_MAX: int = 5
+const DEFEND_LINEUP_MAX: int = 5
+const AVATAR_MOD: int = 10
+const RANKLIST_LEVEL_BASE: int = 60
+const RANKLIST_LEVEL_STEP: int = 2
+const RANKLIST_LEVEL_MIN: int = 10
+
+var pvp: Dictionary = {}
+# T3 依赖倒置：战斗表现音效钩子（GameData 装配后注入 LadderBattle.assemble 用；缺省静默跳过）。
+var sfx_hook: Callable = Callable()
+# 存档标脏钩子（GameData 注入；每日奖励邮件落盘标脏，缺省 Callable 静默跳过，headless 可测）。
+# 2026-09-17 清偿经济优化遗留「_cmd_end_battle 资产未标脏」：写命令（end_battle 发奖/
+# start_battle 扣次数/buy/clear 花钻/daily 重置）统一内聚标脏（T2 依赖倒置，同 midas/vitality），
+# 调用方漏存时至少有 60s 自动存盘兜底；主保护仍是 View 结算链显式 GameData.save()。
+var save_hook: Callable = Callable()
+
+
+static func generate_ai_player(rank: int, player_level: int, cm: ConfigManager, rng: BattleRng) -> Dictionary:
+	var name_idx: int = rng.randi_range(1, PVP_NAMES.size())
+	var level: int = clampi(player_level + rng.randi_range(LEVEL_DELTA_MIN, LEVEL_DELTA_MAX), 1, player_level + LEVEL_CAP_OFFSET)
+	var heroes: Array = _generate_heroes(rank, level, cm, rng)
+	var gs: int = 0
+	for h in heroes:
+		gs += int(h["_level"]) * GS_PER_LEVEL + int(h["_stars"]) * GS_PER_STAR + int(h["_rank"]) * GS_PER_RANK
+	return {"user_id": USER_ID_BASE + rank, "name": PVP_NAMES[name_idx - 1], "avatar": rng.randi_range(1, AVATAR_MAX), "level": level, "vip": rng.randi_range(0, mini(VIP_CAP, player_level / VIP_DIVISOR)), "gs": gs, "rank": rank, "heroes": heroes, "is_robot": 1}
+
+
+static func _generate_heroes(rank: int, level: int, cm: ConfigManager, rng: BattleRng) -> Array:
+	var heroes: Array = []
+	var pvp_enemy: Dictionary = cm.get_raw_table(&"PVPEmeny")
+	for row_key in pvp_enemy:
+		var row: Dictionary = pvp_enemy[row_key]
+		if rank >= int(row.get("Rank", 0)):
+			for i in range(1, HERO_FIELD_COUNT + 1):
+				var hero_id: int = int(row.get("Hero" + str(i), 0))
+				if hero_id > 0:
+					heroes.append({"_tid": hero_id, "_level": maxi(1, level - rng.randi_range(0, LEVEL_HERO_DELTA_MAX)), "_stars": clampi(level / STARS_DIVISOR + rng.randi_range(0, 1), 1, STARS_MAX), "_rank": clampi(level / RANK_DIVISOR + 1, HERO_RANK_MIN, HERO_RANK_MAX)})
+			break
+	if heroes.is_empty():
+		var all_tids: Array = []
+		var unit_table: Dictionary = cm.get_raw_table(&"Unit")
+		for tid in unit_table:
+			if str(tid).is_valid_int() and str(unit_table[tid].get("Type", "")) != "Boss":
+				all_tids.append(int(tid))
+		for i in range(rng.randi_range(HERO_COUNT_MIN, HERO_COUNT_MAX)):
+			if not all_tids.is_empty():
+				var tid: int = all_tids[rng.randi_range(0, all_tids.size() - 1)]
+				heroes.append({"_tid": tid, "_level": maxi(1, level - rng.randi_range(0, LEVEL_FALLBACK_DELTA_MAX)), "_stars": rng.randi_range(1, mini(STARS_MAX, level / STARS_DIVISOR + 1)), "_rank": clampi(maxi(1, level / RANK_DIVISOR), HERO_RANK_MIN, HERO_RANK_MAX)})
+	return heroes
+
+
+static func generate_ai_opponents(player_rank: int, player_level: int, count: int, cm: ConfigManager, rng: BattleRng) -> Array:
+	var opponents: Array = []
+	for i in range(1, count + 1):
+		opponents.append(generate_ai_player(maxi(1, player_rank - rng.randi_range(1, OPPONENT_RANK_BASE * i)), player_level, cm, rng))
+	opponents.sort_custom(func(a, b): return int(a["rank"]) < int(b["rank"]))
+	return opponents
+
+
+static func generate_rank_board(player_level: int, count: int, cm: ConfigManager, rng: BattleRng) -> Array:
+	var board: Array = []
+	for i in range(1, count + 1):
+		var entry: Dictionary = generate_ai_player(i, player_level, cm, rng)
+		entry["rank"] = i
+		board.append(entry)
+	return board
+
+
+static func get_pvp_gs(player: Variant) -> int:
+	var total: int = 0
+	var hm: Variant = player.get("hero_manager")
+	if hm != null:
+		for inst_id in hm.heroes:
+			total += int(hm.heroes[inst_id].gs)
+	return total
+
+
+func ensure_pvp() -> void:
+	if pvp.is_empty():
+		pvp = {"rank": RANK_INIT, "gs": 0, "left_count": LEFT_COUNT_DEFAULT, "buy_times": 0, "last_bt_time": 0, "highest_rank": RANK_INIT, "enemies": [], "records": [], "defend_lineup": [], "last_oppo_rank": RANK_INIT, "last_reset_day": 0}
+
+
+## 跨日重置挑战/购买次数（源 pvp 服务器每日重置 left_count；单机化本地跨日，照
+## excavate_manager 范式——2026-08-22 巡检接线：旧 _open_panel 无条件回满致花钻购买
+## 次数机制自相矛盾，已删）。
+## 2026-09-17 经济单机优化：跨日同时按昨日 rank 发 PVPRankReward 每日排名奖励
+## （系统邮件，源即邮件渠道；首次打开 last_reset_day=0 只重置不发——无"昨日排名"语义）。
+func _check_daily_reset(now: int, player: PlayerData, cm: ConfigManager) -> void:
+	var today: int = _local_day_key(now, int(Time.get_time_zone_from_system().get("bias", 0)))
+	var last_day: int = int(pvp.get("last_reset_day", 0))
+	if last_day == today:
+		return
+	# 系统时间回拨（today < last_day）直接忽略：重置/发奖只进不退，防回拨刷每日排名
+	# 奖励邮件（2026-09-28 审查 P2-2；回正后自然恢复）。
+	if today < last_day:
+		return
+	pvp["last_reset_day"] = today
+	pvp["left_count"] = LEFT_COUNT_DEFAULT
+	pvp["buy_times"] = 0
+	_mark_dirty()   # 首次重置（last_day<=0）不发邮件也标脏
+	if last_day <= 0 or player == null or cm == null:
+		return
+	_issue_daily_reward(player, cm, now)
+
+
+## 写命令统一标脏（save_hook 缺省静默，headless 可测）。
+func _mark_dirty() -> void:
+	if save_hook.is_valid():
+		save_hook.call()
+
+
+## 每日排名奖励邮件（LadderDailyReward 查表构造；表空静默跳过）。发放后标脏落盘。
+func _issue_daily_reward(player: PlayerData, cm: ConfigManager, now: int) -> void:
+	var mail_id: int = player.mailbox.next_mail_id()
+	var mail: Dictionary = LadderDailyReward.build_mail(int(pvp.get("rank", RANK_INIT)), mail_id, cm, now)
+	if mail.is_empty():
+		return
+	player.mailbox.add_system_mail(mail)
+	_mark_dirty()
+
+
+const DAY_KEY_YEAR_WEIGHT: int = 10000
+const DAY_KEY_MONTH_WEIGHT: int = 100
+const SECONDS_PER_MINUTE: int = 60
+
+
+static func _local_day_key(ts: int, off_min: int) -> int:
+	var dt: Dictionary = Time.get_datetime_dict_from_unix_time(ts + off_min * SECONDS_PER_MINUTE)
+	return int(dt["year"]) * DAY_KEY_YEAR_WEIGHT + int(dt["month"]) * DAY_KEY_MONTH_WEIGHT + int(dt["day"])
+
+
+func handle(obj: Dictionary, player: PlayerData, cm: ConfigManager, rng: BattleRng, now: int) -> Dictionary:
+	ensure_pvp()
+	_check_daily_reset(now, player, cm)
+	pvp["gs"] = get_pvp_gs(player)
+	var reply: Dictionary = {}
+	if obj.has("_query_rankboard"):
+		reply["_query_rankboard"] = _cmd_query_rankboard(player)
+	if obj.has("_open_panel"):
+		pvp["enemies"] = generate_ai_opponents(int(pvp["rank"]), player.team_level, OPPONENT_COUNT, cm, rng)
+		if (pvp["defend_lineup"] as Array).is_empty():
+			pvp["defend_lineup"] = _default_defend_lineup(player)
+		reply["_open_panel"] = {"rank": pvp["rank"], "gs": pvp["gs"], "left_count": pvp["left_count"], "buy_times": pvp["buy_times"], "last_bt_time": pvp["last_bt_time"], "highestrank": pvp["highest_rank"], "oppos": pvp["enemies"], "lineup": pvp["defend_lineup"]}
+	if obj.has("_apply_opponent"):
+		pvp["enemies"] = generate_ai_opponents(int(pvp["rank"]), player.team_level, OPPONENT_COUNT, cm, rng)
+		reply["_apply_opponent"] = {"oppos": pvp["enemies"]}
+	if obj.has("_start_battle"):
+		reply["_start_battle"] = _cmd_start_battle(obj["_start_battle"], player, cm, rng, now)
+	if obj.has("_end_battle"):
+		reply["_end_battle"] = _cmd_end_battle(obj["_end_battle"], player, now)
+	if obj.has("_buy_battle_chance"):
+		reply["_buy_battle_chance"] = _cmd_buy_battle_chance(player)
+	if obj.has("_clear_battle_cd"):
+		reply["_clear_battle_cd"] = _cmd_clear_battle_cd(player)
+	if obj.has("_query_records"):
+		reply["_query_records"] = {"records": pvp["records"]}
+	if obj.has("_query_rankborad"):
+		reply["_query_rankborad"] = {"rankboard": _cmd_query_rankborad(player, cm, rng)}
+	if obj.has("_query_oppo"):
+		reply["_query_oppo"] = _cmd_query_oppo(obj["_query_oppo"])
+	if obj.has("_set_lineup"):
+		pvp["defend_lineup"] = (obj["_set_lineup"] as Dictionary).get("lineup", [])
+		pvp["gs"] = get_pvp_gs(player)
+		reply["_set_lineup"] = {"result": "success", "lineup": pvp["defend_lineup"], "gs": str(pvp["gs"])}
+	return reply
+
+
+func _cmd_query_rankboard(player: PlayerData) -> Dictionary:
+	var rank_list: Array = []
+	for i in range(1, BOARD_SIZE + 1):
+		var ni: int = ((i - 1) % AI_NAMES.size()) + 1
+		rank_list.append({"avatar": (i % AVATAR_MOD) + 1, "vip": 0, "name": AI_NAMES[ni - 1], "level": maxi(RANKLIST_LEVEL_BASE - i * RANKLIST_LEVEL_STEP, RANKLIST_LEVEL_MIN)})
+	return {"rank_list": rank_list, "pos": int(pvp["rank"]), "prev_pos": int(pvp["rank"]), "self_rank": {"avatar": player.avatar, "vip": 0, "name": player.player_name, "level": player.team_level}}
+
+
+func _default_defend_lineup(player: PlayerData) -> Array:
+	var lineup: Array = []
+	var hm: Variant = player.get("hero_manager")
+	if hm != null:
+		for inst_id in hm.heroes:
+			if lineup.size() >= DEFEND_LINEUP_MAX:
+				break
+			lineup.append(int(hm.heroes[inst_id].tid))
+	return lineup
+
+
+func _cmd_start_battle(cmd: Variant, player: PlayerData, cm: ConfigManager, rng: BattleRng, now: int) -> Dictionary:
+	var cmd_d: Dictionary = cmd if cmd is Dictionary else {}
+	var oppo_id: int = int(cmd_d.get("oppo_user_id", 0))
+	var enemy: Dictionary = {}
+	for e in (pvp["enemies"] as Array):
+		if int(e["user_id"]) == oppo_id:
+			enemy = e
+			break
+	if enemy.is_empty():
+		enemy = generate_ai_player(maxi(1, oppo_id - USER_ID_BASE), player.team_level, cm, rng)
+	if enemy.is_empty():
+		return {}
+	pvp["left_count"] = maxi(0, int(pvp["left_count"]) - 1)
+	pvp["last_bt_time"] = now
+	pvp["last_oppo_rank"] = int(enemy["rank"])
+	_mark_dirty()
+	return {"heroes": enemy["heroes"], "self_heroes": _assemble_self_heroes(cmd_d.get("attack_lineup", []), player), "is_robot": int(enemy.get("is_robot", 1)), "rseed": rng.randi_range(1, RSEED_MAX)}
+
+
+func _assemble_self_heroes(attack_lineup: Variant, player: PlayerData) -> Array:
+	var hm: Variant = player.get("hero_manager")
+	var result: Array = []
+	var lineup: Array = attack_lineup if attack_lineup is Array else []
+	for tid in lineup:
+		var inst_id: int = _find_hero_inst_by_tid(hm, int(tid))
+		if inst_id > 0:
+			var h: Variant = hm.heroes[inst_id]
+			# _skill_levels/_awake 必传（源 local_server.lua:3233-3242 回包含 _skill_levels；
+			# 漏传致只装 Basic Skill 无大招，同 stage_manager 2026-08-18 修）
+			result.append({
+				"_tid": int(h.tid), "_level": int(h.level), "_rank": int(h.rank),
+				"_stars": int(h.stars), "_items": StageManager._hero_items(h),
+				"_awake": bool(h.awake), "_skill_levels": h.skill_levels_by_slot(),
+			})
+		else:
+			result.append({"_tid": int(tid), "_level": 1})
+	return result
+
+
+static func _find_hero_inst_by_tid(hm: Variant, tid: int) -> int:
+	if hm == null:
+		return 0
+	for inst_id in hm.heroes:
+		if int(hm.heroes[inst_id].tid) == tid:
+			return int(inst_id)
+	return 0
+
+
+func _cmd_end_battle(cmd: Variant, player: PlayerData, now: int) -> Dictionary:
+	var result_str: String = str((cmd as Dictionary).get("result", "")) if cmd is Dictionary else str(cmd)
+	(pvp["records"] as Array).insert(0, {"result": result_str, "time": now, "rank": int(pvp["rank"])})
+	while (pvp["records"] as Array).size() > RECORDS_MAX:
+		(pvp["records"] as Array).pop_back()
+	if result_str == "victory" or result_str == "0":
+		var old_rank: int = int(pvp["rank"])
+		var old_highest: int = int(pvp["highest_rank"])
+		var oppo_rank: int = int(pvp.get("last_oppo_rank", pvp["rank"]))
+		if oppo_rank < old_rank:
+			pvp["rank"] = oppo_rank
+		if int(pvp["rank"]) < old_highest:
+			pvp["highest_rank"] = pvp["rank"]
+		var reward: int = maxi(REWARD_MIN, REWARD_BASE - int(pvp["rank"]))
+		player.add_point("arenapoint", reward)
+		# 最高排名奖励按进步幅度（见常量区拍板注释）：rise = 刷新前历史最高 − 刷新后
+		#（名次数值越小越好，rise>0 即本次刷新最高）；每提升 10 名 1 钻，至少 1 钻，上限 100。
+		var rise: int = old_highest - int(pvp["highest_rank"])
+		var best_rank_reward: int = maxi(1, mini(rise / BEST_RANK_PER_DIAMOND, BEST_RANK_DIAMOND_MAX)) if rise > 0 else 0
+		if best_rank_reward > 0:
+			player.add_diamond(best_rank_reward)
+		_mark_dirty()
+		return {"result": "victory", "rank": pvp["rank"], "prev_rank": old_rank, "reward": reward,
+			"best_rank_reward": best_rank_reward, "best_rank": int(pvp["highest_rank"])}
+	_mark_dirty()
+	return {"result": "defeat", "rank": pvp["rank"], "prev_rank": pvp["rank"], "reward": 0,
+		"best_rank_reward": 0, "best_rank": int(pvp["highest_rank"])}
+
+
+## 下一次购买价格（源 pvp.lua:1869 GradientPrice[buyTime+1]["PVP Buy"]，缺行 fallback 50）。
+func buy_cost(player: PlayerData) -> int:
+	var price_row: Dictionary = player.cm.get_raw_table(&"GradientPrice").get(str(int(pvp["buy_times"]) + 1), {})
+	if price_row.has("PVP Buy"):
+		return int(price_row["PVP Buy"])
+	return BUY_COST_DEFAULT
+
+
+## 今日是否还可购买（源 :3144 leftBuyTime = VIP[vip]["PVP Buy"] - buyTime > 0；
+## 单机特权 VIP 满档（player_data.privilege_vip_level，2026-09-08 去 VIP 限制口径））。
+func can_buy_more(player: PlayerData) -> bool:
+	return int(pvp["buy_times"]) < int(VipData.get_vip_field(player.privilege_vip_level(), "PVP Buy", player.cm))
+
+
+func _cmd_buy_battle_chance(player: PlayerData) -> Dictionary:
+	if not can_buy_more(player):
+		return {"result": "fail"}
+	var cost: int = buy_cost(player)
+	if player.spend_diamond(cost):
+		pvp["buy_times"] = int(pvp["buy_times"]) + 1
+		# 回满基础次数（2026-10-09 用户拍板照源 UI 语义：pvp.lua buyPvpTimesRsp leftTime=5
+		# 显示 5/5 + 文案「增加N次挑战机会」；local_server.lua:3321 的 +1 与源 UI 自相矛盾，
+		# 以玩家实际体验口径为准；源购买入口仅 left_count==0 可达，+N 与回满等价。
+		# 同日二拍板：基础次数 5→10，回满=10）。
+		pvp["left_count"] = LEFT_COUNT_DEFAULT
+		_mark_dirty()
+		return {"result": "success", "left_count": pvp["left_count"], "buy_times": pvp["buy_times"]}
+	return {"result": "fail"}
+
+
+func _cmd_clear_battle_cd(player: PlayerData) -> Dictionary:
+	if player.spend_diamond(CLEAR_CD_COST):
+		pvp["last_bt_time"] = 0
+		_mark_dirty()
+		return {"result": "success"}
+	return {"result": "fail"}
+
+
+func _cmd_query_oppo(cmd: Variant) -> Dictionary:
+	var oppo_id: int = int((cmd as Dictionary).get("user_id", 0)) if cmd is Dictionary else 0
+	for e in (pvp["enemies"] as Array):
+		if int(e["user_id"]) == oppo_id:
+			return e
+	return {}
+
+
+func _cmd_query_rankborad(player: PlayerData, cm: ConfigManager, rng: BattleRng) -> Array:
+	var board: Array = generate_rank_board(player.team_level, BOARD_SIZE, cm, rng)
+	board.append({"user_id": 0, "name": player.player_name, "avatar": player.avatar, "level": player.team_level, "vip": player.vip_level, "gs": pvp["gs"], "rank": pvp["rank"], "is_self": 1})
+	return board
+
+
+func to_dict() -> Dictionary:
+	return {"pvp": pvp}
+
+
+func from_dict(data: Dictionary) -> void:
+	pvp = data.get("pvp", {})
+	ensure_pvp()

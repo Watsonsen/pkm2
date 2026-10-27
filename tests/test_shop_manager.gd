@@ -1,0 +1,501 @@
+extends GutTest
+# Phase 5 shop 商店 Logic 单测（2026-07-05，照源 local_server.lua:1159-1322 + shop.lua:138-154）。
+
+var cm: ConfigManager
+
+
+func before_all() -> void:
+	cm = ConfigManager.new()
+	cm.load_all()
+
+
+func _make_pd() -> PlayerData:
+	var pd := PlayerData.new(cm)
+	pd.hero_manager.gold = 100000
+	pd.diamond = 10000
+	return pd
+
+
+# generate_shop_goods：走 Shop.json 槽位组 → ItemGroups 抽取（2026-10-08 改造）。
+# shop1 槽位组 [1,4,7,7,7,8,141,142] 8 个非零槽 → 8 件；字段齐全。
+func test_generate_goods_count() -> void:
+	var sm := ShopManager.new(cm)
+	var rng := BattleRng.new(12345)
+	var goods: Array = sm.generate_shop_goods(1, rng, cm)
+	assert_eq(goods.size(), 8, "8 件商品（shop1 八个非零槽位组）")
+	for g in goods:
+		var gd: Dictionary = g
+		assert_true(gd.has("id") and gd.has("type") and gd.has("price") and gd.has("amount"), "字段齐全")
+
+
+# 商品价格/币种/数量直读 ItemGroups 组内配置（原版口径；商品 i 出自槽位 i 绑定的组）。
+func test_goods_match_itemgroups() -> void:
+	var sm := ShopManager.new(cm)
+	var shop_row: Dictionary = cm.get_raw_table(&"Shop").get("1", {})
+	var groups: Dictionary = cm.get_raw_table(&"ItemGroups")
+	var slot_groups: Array = []
+	for slot in range(1, ShopManager.GOODS_SLOT_COUNT + 1):
+		var gid: int = int(shop_row.get("Goods %d Group" % slot, 0))
+		if gid != 0:
+			slot_groups.append(gid)
+	var goods: Array = sm.generate_shop_goods(1, BattleRng.new(12345), cm)
+	assert_eq(goods.size(), slot_groups.size(), "商品数 = 非零槽位数")
+	for i in goods.size():
+		var gd: Dictionary = goods[i]
+		var group: Dictionary = groups.get(str(slot_groups[i]), {})
+		var found: bool = false
+		for it in group.values():
+			if int(it.get("id", 0)) == int(gd["id"]) and int(it.get("price", 0)) == int(gd["price"]) \
+					and String(it.get("price type", "")) == String(gd["type"]) \
+					and int(it.get("amout", 1)) == int(gd["amount"]):
+				found = true
+				break
+		assert_true(found, "商品 %d (id=%d price=%d type=%s) 出自槽位组 %d 表项" % [i, int(gd["id"]), int(gd["price"]), String(gd["type"]), slot_groups[i]])
+
+
+# shop4 远征商店全槽 crusadepoint（ItemGroups 组 14-22 全 crusadepoint，2026-10-08 修复货币口径）
+func test_generate_crusade_shop_coin() -> void:
+	var sm := ShopManager.new(cm)
+	var goods: Array = sm.generate_shop_goods(4, BattleRng.new(12345), cm)
+	assert_eq(goods.size(), 12, "12 件（shop4 十二槽全绑组）")
+	for g in goods:
+		assert_eq(String((g as Dictionary)["type"]), "crusadepoint", "远征商品币种=crusadepoint")
+		assert_true(int((g as Dictionary)["price"]) <= 8090, "价格在表配范围内（组 20/21 最高 8090，非金币口径 Buy Price）")
+
+
+# shop5 竞技场商店全槽 arenapoint（ItemGroups 组 40-48 全 arenapoint）
+func test_generate_arena_shop_coin() -> void:
+	var sm := ShopManager.new(cm)
+	var goods: Array = sm.generate_shop_goods(5, BattleRng.new(12345), cm)
+	assert_eq(goods.size(), 12, "12 件")
+	for g in goods:
+		assert_eq(String((g as Dictionary)["type"]), "arenapoint", "竞技场商品币种=arenapoint")
+
+
+# shop7 公会商店商品 guildpoint（原版表配置；源单机版 payTypeMap 缺 7 fallback gold 是降级实现）
+func test_generate_guild_shop_coin() -> void:
+	var sm := ShopManager.new(cm)
+	var goods: Array = sm.generate_shop_goods(7, BattleRng.new(12345), cm)
+	assert_eq(goods.size(), 12, "12 件")
+	for g in goods:
+		assert_eq(String((g as Dictionary)["type"]), "guildpoint", "公会商品币种=guildpoint（组 137-139 表配置）")
+
+
+# is_sale：地精 id=2 全 SALE 标（源 :1200），普通店 false
+func test_goblin_sale_badge() -> void:
+	var sm := ShopManager.new(cm)
+	var goods2: Array = sm.generate_shop_goods(2, BattleRng.new(12345), cm)
+	var goods1: Array = sm.generate_shop_goods(1, BattleRng.new(12345), cm)
+	for g in goods2:
+		assert_true(bool((g as Dictionary)["is_sale"]), "地精 is_sale=true")
+	for g in goods1:
+		assert_false(bool((g as Dictionary)["is_sale"]), "普通 is_sale=false")
+
+
+# payType：黑市 id=3 槽 1 绑组 3（单项 diamond）
+func test_pay_type_black_market() -> void:
+	var sm := ShopManager.new(cm)
+	var goods: Array = sm.generate_shop_goods(3, BattleRng.new(999), cm)
+	assert_eq(String(goods[0]["type"]), "diamond", "黑市槽1（组3）=diamond")
+
+
+# open_shop：生成 + 存 shop_data
+func test_open_shop_stores() -> void:
+	var sm := ShopManager.new(cm)
+	var goods: Array = sm.open_shop(1, BattleRng.new(12345), cm)
+	assert_eq(sm.get_goods(1).size(), 8, "open_shop 存 shop_data")
+	assert_eq(sm.get_goods(1), goods, "get_goods 返存储列表")
+
+
+# buy：扣金币 + 加物品（组配数量）+ 标记售罄（源 buyReply addEquip + :1272 amount=0）
+func test_buy_gold_success() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var pd := _make_pd()
+	var gold_before: int = pd.hero_manager.gold
+	var g0: Dictionary = sm.get_goods(1)[0]
+	var price: int = int(g0["price"])
+	var amount: int = int(g0["amount"])
+	var item_id: int = int(g0["id"])
+	assert_true(sm.buy(1, 0, pd, cm), "购买成功")
+	assert_eq(pd.hero_manager.gold, gold_before - price, "扣金币 = 商品单价")
+	assert_eq(int(pd.items.get(item_id, 0)), amount, "加组配数量进背包")
+
+
+# 售罄不可再买（源 :1272 amount=0 → shop_consume fail）
+func test_buy_soldout() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var pd := _make_pd()
+	assert_true(sm.buy(1, 0, pd, cm), "首次购买成功")
+	assert_eq(int(sm.get_goods(1)[0]["amount"]), 0, "amount 标 0")
+	assert_false(sm.buy(1, 0, pd, cm), "售罄不可再买")
+
+
+# 金币不足失败
+func test_buy_no_gold() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var pd := PlayerData.new(cm)   # gold=0
+	assert_false(sm.buy(1, 0, pd, cm), "金币不足失败")
+
+
+# P2 shop 支付：arenapoint（竞技场币）扣费（源 shop_consume payType=5）
+func test_spend_arenapoint() -> void:
+	var pd := _make_pd()
+	pd.arena_point = 500
+	assert_true(ShopManager._spend(ShopManager.PAY_ARENA, 200, pd), "arenapoint 余额足 → 扣成功")
+	assert_eq(pd.arena_point, 300, "arenapoint 扣 200 剩 300")
+	assert_false(ShopManager._spend(ShopManager.PAY_ARENA, 400, pd), "arenapoint 余额不足 → 失败")
+
+
+# P2 shop 支付：guildpoint（公会币）扣费（源 shop_consume payType=6）
+func test_spend_guildpoint() -> void:
+	var pd := _make_pd()
+	pd.guildpoint = 300
+	assert_true(ShopManager._spend(ShopManager.PAY_GUILD, 100, pd), "guildpoint 余额足 → 扣成功")
+	assert_eq(pd.guildpoint, 200, "guildpoint 扣 100 剩 200")
+	assert_false(ShopManager._spend(ShopManager.PAY_GUILD, 500, pd), "guildpoint 余额不足 → 失败")
+
+
+# refresh：普通店扣钻 + 重新生成 + refresh_times+1（源 doClickRefresh + GradientPrice）
+func test_refresh() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var pd := _make_pd()
+	var dia_before: int = pd.diamond
+	var cost: int = sm.get_refresh_cost(1, cm)
+	assert_true(sm.refresh(1, pd, BattleRng.new(999), cm), "刷新成功")
+	assert_eq(pd.diamond, dia_before - cost, "扣刷新钻（shop1 刷新币种=diamond）")
+	assert_eq(sm.get_refresh_times(1), 1, "刷新次数+1")
+	assert_eq(sm.get_goods(1).size(), 8, "刷新后仍 8 件")
+
+
+# refresh：shop4 远征店扣 crusadepoint（源 marketconfig [4] refresh_coin_type；2026-10-08 修复）
+func test_refresh_crusade_coin() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(4, BattleRng.new(12345), cm)
+	var pd := _make_pd()
+	pd.crusade_point = 10000
+	var dia_before: int = pd.diamond
+	var cost: int = sm.get_refresh_cost(4, cm)
+	assert_true(cost > 0 and cost <= 10000, "刷新费用在龙鳞余额内")
+	assert_true(sm.refresh(4, pd, BattleRng.new(999), cm), "刷新成功")
+	assert_eq(pd.crusade_point, 10000 - cost, "扣龙鳞（非钻石）")
+	assert_eq(pd.diamond, dia_before, "钻石不动")
+	assert_eq(sm.get_goods(4).size(), 12, "刷新后仍 12 件")
+
+
+# refresh：shop5 竞技场店扣 arenapoint（源 marketconfig [5] refresh_coin_type）
+func test_refresh_arena_coin() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(5, BattleRng.new(12345), cm)
+	var pd := _make_pd()
+	pd.arena_point = 10000
+	var cost: int = sm.get_refresh_cost(5, cm)
+	assert_true(sm.refresh(5, pd, BattleRng.new(999), cm), "刷新成功")
+	assert_eq(pd.arena_point, 10000 - cost, "扣角斗士币（非钻石）")
+
+
+# refresh：shop4 龙鳞不足 → 失败且不扣任何币
+func test_refresh_crusade_no_coin() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(4, BattleRng.new(12345), cm)
+	var pd := _make_pd()   # crusade_point=0, diamond=10000
+	assert_false(sm.refresh(4, pd, BattleRng.new(1), cm), "龙鳞不足刷新失败")
+	assert_eq(pd.diamond, 10000, "失败不扣钻石（曾误扣）")
+
+
+# refresh：钻石不足失败
+func test_refresh_no_diamond() -> void:
+	var sm := ShopManager.new(cm)
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var pd := PlayerData.new(cm)   # diamond=0
+	assert_false(sm.refresh(1, pd, BattleRng.new(1), cm), "钻石不足刷新失败")
+
+
+# get_refresh_cost：GradientPrice[today_times+1]["Shop N Refresh"]（源 getShopRefreshCost）
+func test_refresh_cost_gradient() -> void:
+	var sm := ShopManager.new(cm)
+	var cost0: int = sm.get_refresh_cost(1, cm)   # today_times=0 → GradientPrice["1"]["Shop 1 Refresh"]=50
+	assert_eq(cost0, 50, "首次刷新 50 钻（GradientPrice[1]）")
+
+
+# ---- starshop（神秘星辰商店，照源 local_server:351 generateStarGoods + :1286 shop_star_consume）----
+
+# generate_star_goods：5 件 + types {0,0,1,1,2} + stone_id 8/9/10 + prices 50/100/200（源 :351-365）
+func test_generate_star_goods() -> void:
+	var goods: Array = ShopManager.generate_star_goods()
+	assert_eq(goods.size(), 5, "5 件商品（源 types 5 元素）")
+	for g in goods:
+		var gd: Dictionary = g
+		assert_true(gd.has("stone_id") and gd.has("stone_amount") and gd.has("box"), "字段齐全")
+		assert_eq(int(gd["amount"]), 1, "amount=1")
+	assert_eq(int(goods[0]["stone_id"]), 8, "type 0 → stone_id 8（绿）")
+	assert_eq(int(goods[2]["stone_id"]), 9, "type 1 → stone_id 9（蓝）")
+	assert_eq(int(goods[4]["stone_id"]), 10, "type 2 → stone_id 10（紫）")
+	assert_eq(int(goods[0]["stone_amount"]), 50, "绿 50 灵魂石（源 prices[0]=50）")
+	assert_eq(int(goods[2]["stone_amount"]), 100, "蓝 100 灵魂石")
+	assert_eq(int(goods[4]["stone_amount"]), 200, "紫 200 灵魂石")
+
+
+# open_star_shop：生成 + 存 shop_data["starshop"] + expire 初始化（批 E E4）
+func test_open_star_shop() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := PlayerData.new(cm)
+	sm.open_star_shop(pd)
+	assert_eq(sm.get_star_goods().size(), 5, "open_star_shop 存 5 件")
+	assert_true(pd.shop_expire_end.has(ShopManager.STARSHOP_SHOP_ID), "开店设 expire_end[6]")
+	var now := int(Time.get_unix_time_from_system())
+	var rema: int = sm.get_expire_remaining(ShopManager.STARSHOP_SHOP_ID, pd, now)
+	assert_between(rema, ShopManager.STARSHOP_EXPIRE_SECS - 5, ShopManager.STARSHOP_EXPIRE_SECS, "剩余≈30 天")
+
+
+# init_starshop_expire：未记录设 30 天；已记录不重置（源初始档 _sshop 只设一次）
+func test_init_starshop_expire_idempotent() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := PlayerData.new(cm)
+	var now := 1780000000
+	sm.init_starshop_expire(pd, now)
+	assert_eq(int(pd.shop_expire_end[ShopManager.STARSHOP_SHOP_ID]), now + ShopManager.STARSHOP_EXPIRE_SECS, "now+30 天（源 local_server:331 写死 86400*30）")
+	sm.init_starshop_expire(pd, now + 100)
+	assert_eq(int(pd.shop_expire_end[ShopManager.STARSHOP_SHOP_ID]), now + ShopManager.STARSHOP_EXPIRE_SECS, "已记录不重置")
+
+
+# buy_star：扣灵魂石 + 产出 equip + 售罄（源 shop_star_consume + tavern_draw stone）
+func test_buy_star_success() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := PlayerData.new(cm)
+	sm.open_star_shop(pd)
+	pd.items[8] = 100   # 绿灵魂石 100（够 50）
+	var r: Dictionary = sm.buy_star(0, pd, BattleRng.new(12345), cm)   # slot 0 = 绿
+	assert_true(bool(r["ok"]), "兑换成功")
+	assert_eq(int(pd.items.get(8, 0)), 50, "扣 50 绿灵魂石")
+	assert_eq(int(sm.get_star_goods()[0]["amount"]), 0, "售罄 amount=0")
+	assert_true((r["loots"] as Array).size() > 0, "产出 equip 列表非空")
+
+
+# buy_star 灵魂石不足
+func test_buy_star_no_resource() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := PlayerData.new(cm)
+	sm.open_star_shop(pd)
+	pd.items[8] = 10   # 绿灵魂石 10（不够 50）
+	var r: Dictionary = sm.buy_star(0, pd, BattleRng.new(1), cm)
+	assert_false(bool(r["ok"]), "灵魂石不足失败")
+	assert_true(bool(r.get("no_resource", false)), "no_resource 标志")
+
+
+# buy_star 售罄不可再兑
+func test_buy_star_soldout() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := PlayerData.new(cm)
+	sm.open_star_shop(pd)
+	pd.items[8] = 100
+	assert_true(bool(sm.buy_star(0, pd, BattleRng.new(1), cm)["ok"]), "首次成功")
+	var r: Dictionary = sm.buy_star(0, pd, BattleRng.new(1), cm)
+	assert_false(bool(r["ok"]), "售罄不可再兑")
+	assert_true(bool(r.get("soldout", false)), "soldout 标志")
+
+
+# ---- 自动刷新时刻（照源 local_server.lua:1219 + up.proto:260 auto_refresh）----
+
+# 构造本地今天 h:m:s 的 ts（today_ts 同口径：+bias 拆本地、组回 -bias；两 Time API 均 UTC
+# ——2026-08-22 巡检同步：旧 epoch-UTC 基准与修复后本地口径 today_ts 失配 8h）。
+func _ts(h: int, m: int = 0, s: int = 0) -> int:
+	var off: int = int(Time.get_time_zone_from_system().get("bias", 0)) * 60
+	var d: Dictionary = Time.get_datetime_dict_from_unix_time(int(Time.get_unix_time_from_system()) + off)
+	d["hour"] = h
+	d["minute"] = m
+	d["second"] = s
+	return int(Time.get_unix_time_from_datetime_dict(d)) - off
+
+
+# init_auto_refresh：首次开店设 ts（源 local_server:1219）；已有不重设；Shop6 Refresh Times 空不设
+func test_init_auto_refresh() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	assert_true(sm.init_auto_refresh(1, pd, 100000), "Shop1 首次 init 设 ts")
+	assert_eq(int(pd.shop_auto_refresh.get(1, 0)), 100000, "Shop1 ts 已存")
+	assert_false(sm.init_auto_refresh(1, pd, 200000), "已有记录不重设")
+	assert_eq(int(pd.shop_auto_refresh.get(1, 0)), 100000, "ts 不变")
+	assert_false(sm.init_auto_refresh(6, pd, 100000), "Shop6 Refresh Times 空不 init")
+	assert_false(pd.shop_auto_refresh.has(6), "Shop6 无记录")
+
+
+# check_auto_refresh：到点触发刷新 + 更新 ts；未到点不触发（源 up.proto:260）
+func test_check_auto_refresh_trigger() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	var now_ts: int = _ts(10, 0)       # now=10:00
+	var last_ts: int = _ts(8, 0)       # last=8:00 → 9:00 点已过且 last<9:00 → 触发
+	pd.shop_auto_refresh[1] = last_ts
+	assert_true(sm.check_auto_refresh(1, pd, now_ts, BattleRng.new(999)), "到 9:00 点触发刷新")
+	assert_eq(int(pd.shop_auto_refresh.get(1, 0)), now_ts, "ts 更新为 now")
+	assert_eq(sm.get_goods(1).size(), 8, "刷新后仍 8 件")
+
+
+# check_auto_refresh：未到下个点不触发
+func test_check_auto_refresh_not_yet() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	pd.shop_auto_refresh[1] = _ts(10, 0)   # last=10:00 → 9:00 已刷，下个 12:00 未到
+	assert_false(sm.check_auto_refresh(1, pd, _ts(10, 30), BattleRng.new(1)), "未到 12:00 不触发")
+
+
+# check_auto_refresh：未启用（last=0）不触发
+func test_check_auto_refresh_disabled() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	assert_false(sm.check_auto_refresh(1, pd, _ts(10, 0), BattleRng.new(1)), "last=0 未启用不触发")
+
+
+# get_next_refresh_desc：Shop1 有 Refresh Times 返非空；Shop6 空返 ""
+func test_next_refresh_desc() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	pd.shop_auto_refresh[1] = _ts(8, 0)
+	var desc: String = sm.get_next_refresh_desc(1, pd, _ts(10, 30))
+	# now 10:30 → 下个 12:00/18:00/21:00 之一
+	assert_true(desc.length() > 0, "Shop1 有 desc")
+	pd.shop_auto_refresh[6] = _ts(8, 0)
+	assert_eq(sm.get_next_refresh_desc(6, pd, _ts(10, 30)), "", "Shop6 无 Refresh Times desc 空")
+
+
+# 持久化：to_dict/from_dict 保留 shop_auto_refresh
+func test_persist_shop_auto_refresh() -> void:
+	var pd := _make_pd()
+	pd.shop_auto_refresh[1] = 111111
+	pd.shop_auto_refresh[2] = 222222
+	var d: Dictionary = pd.to_dict()
+	var pd2: PlayerData = PlayerData.from_dict(d, cm)
+	assert_eq(int(pd2.shop_auto_refresh.get(1, 0)), 111111, "from_dict 恢复 shop1 ts")
+	assert_eq(int(pd2.shop_auto_refresh.get(2, 0)), 222222, "from_dict 恢复 shop2 ts")
+
+
+# check_auto_refresh 连续触发（模拟 _process 跨多个 Refresh Times 点）
+func test_check_auto_refresh_sequence() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	sm.open_shop(1, BattleRng.new(12345), cm)
+	pd.shop_auto_refresh[1] = _ts(8, 0)   # last=8:00
+	assert_true(sm.check_auto_refresh(1, pd, _ts(10, 0), BattleRng.new(1)), "10:00 过 9:00 点触发")
+	assert_eq(int(pd.shop_auto_refresh[1]), _ts(10, 0), "last 更新为 10:00")
+	assert_false(sm.check_auto_refresh(1, pd, _ts(10, 30), BattleRng.new(1)), "10:30 未到 12:00 不触发")
+	assert_true(sm.check_auto_refresh(1, pd, _ts(12, 30), BattleRng.new(2)), "12:30 过 12:00 点触发")
+	assert_eq(int(pd.shop_auto_refresh[1]), _ts(12, 30), "last 更新为 12:30")
+
+
+# ---- 停留到期（照源 Shop.Expire Time + shop.lua:686-694 到期分支）----
+
+# get_expire_time：地精(2)/黑市(3)/星际(6)=3600，普通(1)=0（源 Shop.lua）
+func test_get_expire_time() -> void:
+	assert_eq(ShopManager.get_expire_time(1, cm), 0, "普通店 Expire=0（永不过期）")
+	assert_eq(ShopManager.get_expire_time(2, cm), 3600, "地精 Expire=3600")
+	assert_eq(ShopManager.get_expire_time(3, cm), 3600, "黑市 Expire=3600")
+	assert_eq(ShopManager.get_expire_time(6, cm), 3600, "星际 Expire=3600")
+
+
+# init_expire：地精开店设 expire_end=now+3600；普通店不设；停留期内不重设；已过期重计（2026-09-14）
+func test_init_expire() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	assert_true(sm.init_expire(2, pd, 100000), "地精首次 init 设 expire_end")
+	assert_eq(int(pd.shop_expire_end.get(2, 0)), 100000 + 3600, "expire_end=now+3600")
+	assert_false(sm.init_expire(2, pd, 101800), "停留期内已有记录不重设（源 NPC 停留期固定）")
+	assert_eq(int(pd.shop_expire_end.get(2, 0)), 100000 + 3600, "停留期内 expire_end 不变")
+	assert_true(sm.init_expire(2, pd, 200000), "已过期记录重计（200000>=expire_end 103600）")
+	assert_eq(int(pd.shop_expire_end.get(2, 0)), 200000 + 3600, "过期重计 expire_end=now+3600")
+	assert_false(sm.init_expire(1, pd, 100000), "普通店 Expire=0 不 init")
+	assert_false(pd.shop_expire_end.has(1), "普通店无记录")
+
+
+# check_expire：到期前 false，到期后 true；普通店永 false
+func test_check_expire() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	pd.shop_expire_end[2] = 100000 + 3600   # 地精 expire_end
+	assert_false(sm.check_expire(2, pd, 100000), "开店未到期")
+	assert_false(sm.check_expire(2, pd, 100000 + 3599), "到期前 1s")
+	assert_true(sm.check_expire(2, pd, 100000 + 3600), "到期点 true")
+	assert_true(sm.check_expire(2, pd, 100000 + 3700), "过期 true")
+	assert_false(sm.check_expire(1, pd, 999999), "普通店无 expire_end 永 false")
+
+
+# get_expire_remaining/get_expire_desc：剩余秒 + HH:MM:SS（源 gethmsNString）
+func test_expire_remaining_desc() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	pd.shop_expire_end[2] = 100000 + 3600
+	assert_eq(sm.get_expire_remaining(2, pd, 100000), 3600, "剩余 3600s")
+	assert_eq(sm.get_expire_remaining(1, pd, 100000), -1, "普通店不限时返 -1")
+	assert_eq(sm.get_expire_desc(2, pd, 100000), "01:00:00", "3600s → 01:00:00")
+	assert_eq(sm.get_expire_desc(2, pd, 100000 + 1800), "00:30:00", "1800s → 00:30:00")
+	assert_eq(sm.get_expire_desc(2, pd, 100000 + 3600), "", "到期返空")
+
+
+# clear_expire：清除记录（到期关面板后调，再点重计）
+func test_clear_expire() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	pd.shop_expire_end[2] = 100000 + 3600
+	sm.clear_expire(2, pd)
+	assert_false(pd.shop_expire_end.has(2), "清除后无记录")
+	assert_false(sm.check_expire(2, pd, 999999), "清除后 check_expire false")
+	assert_true(sm.init_expire(2, pd, 200000), "清除后可重新 init（再点重计）")
+
+
+# get_time_type：expire 优先于 refresh（源 checkShopTimeType:222-229）
+func test_time_type_expire_priority() -> void:
+	var sm := ShopManager.new(cm)
+	var pd := _make_pd()
+	pd.shop_auto_refresh[2] = _ts(8, 0)   # 同时有自动刷新
+	pd.shop_expire_end[2] = _ts(10, 0) + 3600   # 且停留中
+	assert_eq(sm.get_time_type(2, pd, _ts(10, 0)), "expire", "停留中 expire 优先")
+	pd.shop_expire_end.erase(2)
+	assert_eq(sm.get_time_type(2, pd, _ts(10, 0)), "refresh", "无 expire 则 refresh")
+
+
+# ---- MarketConfig 货币图标/刷新币种（2026-10-08 修复：源 marketconfig.lua getCoinRes 5 键漏译）----
+
+# get_coin_res：5 键全映射（crusadepoint=龙鳞/arenapoint=角斗士/guildpoint=兄弟会专用贴图，非钻石贴图）
+func test_coin_res_five_types() -> void:
+	assert_eq(MarketConfig.get_coin_res("gold"), "shop_gold_icon.png", "gold=金币贴图")
+	assert_eq(MarketConfig.get_coin_res("diamond"), "shop_token_icon.png", "diamond=钻石贴图")
+	assert_eq(MarketConfig.get_coin_res("crusadepoint"), "money_dragonscale_small.png", "crusadepoint=龙鳞贴图（源 :282）")
+	assert_eq(MarketConfig.get_coin_res("arenapoint"), "money_arenatoken_small.png", "arenapoint=角斗士贴图（源 :283）")
+	assert_eq(MarketConfig.get_coin_res("guildpoint"), "money_guildtoken_small.png", "guildpoint=兄弟会贴图（源 :284）")
+	for pay in ["gold", "diamond", "crusadepoint", "arenapoint", "guildpoint"]:
+		var path: String = "res://assets/ui/alpha/HVGA/" + MarketConfig.get_coin_res(pay)
+		assert_true(ResourceLoader.exists(path), "贴图存在: " + path)
+
+
+# get_refresh_coin_type：1/2/3 钻石、4 龙鳞、5 角斗士、7 兄弟会（源 refresh_coin_type）
+func test_refresh_coin_type_map() -> void:
+	assert_eq(MarketConfig.get_refresh_coin_type(1), "diamond", "shop1 刷=钻石")
+	assert_eq(MarketConfig.get_refresh_coin_type(2), "diamond", "shop2 刷=钻石")
+	assert_eq(MarketConfig.get_refresh_coin_type(3), "diamond", "shop3 刷=钻石")
+	assert_eq(MarketConfig.get_refresh_coin_type(4), "crusadepoint", "shop4 刷=龙鳞")
+	assert_eq(MarketConfig.get_refresh_coin_type(5), "arenapoint", "shop5 刷=角斗士")
+	assert_eq(MarketConfig.get_refresh_coin_type(7), "guildpoint", "shop7 刷=兄弟会")
+
+
+# get_refresh_coin_name_key：刷新确认弹窗币种名 LSTR key
+func test_refresh_coin_name_key() -> void:
+	assert_eq(MarketConfig.get_refresh_coin_name_key(4), "SHOP.INTERFAX_COINS", "shop4 名=枚龙鳞硬币")
+	assert_eq(MarketConfig.get_refresh_coin_name_key(5), "SHOP.GLADIATOR_COINS", "shop5 名=枚角斗士硬币")
+	assert_eq(MarketConfig.get_refresh_coin_name_key(7), "marketconfig.1.10.1.002", "shop7 名=枚兄弟会硬币")
+
+
+# 持久化：to_dict/from_dict 保留 shop_expire_end
+func test_persist_shop_expire_end() -> void:
+	var pd := _make_pd()
+	pd.shop_expire_end[2] = 111111
+	pd.shop_expire_end[3] = 222222
+	var d: Dictionary = pd.to_dict()
+	var pd2: PlayerData = PlayerData.from_dict(d, cm)
+	assert_eq(int(pd2.shop_expire_end.get(2, 0)), 111111, "from_dict 恢复 shop2 expire_end")
+	assert_eq(int(pd2.shop_expire_end.get(3, 0)), 222222, "from_dict 恢复 shop3 expire_end")

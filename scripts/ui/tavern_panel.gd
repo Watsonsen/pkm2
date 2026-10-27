@@ -1,0 +1,550 @@
+class_name TavernPanel
+extends PopWindow
+
+## 抽卡面板（View 层）——两件套范式（批2 Task 7，2026-08-16）。
+## 静态结构全在 tavern_content.tscn：3 卡池 board（bronze/gold/magic）×
+## container(206×320) > BoardBg/TitleImage/TitleLabel（2026-09-15 英文美术贴图
+## TitleArt 退役改 Label）+ Clip(裁剪) > Scroll（卡池内容，
+## 源 createBaseBoard:594 + createCommonLayer:653 / createMagicLayer:949 静态化）。
+## 原 procedural board 工厂（336 行）退役；panel 只做业务 + 信号 connect + fill
+## （LSTR 文案/费用数值）+ 滑动 tween（源 doClickCheck:1576 上滑 320 / doClickArrow:1584）。
+## magic drop_bg 4 组 heroIcons 运行时填（源 doRefrehMagicHeroIcon:1290，
+## ask_magicsoul 回复后才有 ID，动态行不走 tscn）。
+## Cost + Cost Type 从表读（TavernData.get_tavern_info）；magic 源无单抽 → tscn 无单抽区，
+## ten_buy 标签照源 :1225 = BUY__D % 1（"购买1个"，唯一按钮按单抽计费）。
+## 面板级 _preview_container 保留兼容 test_tavern_magic（非独占不能改），magic 主预览在 Scroll 内。
+
+signal drawn
+
+const CONTENT_SCENE: PackedScene = preload("res://scenes/ui/tavern_content.tscn")
+const POOL_KEYS: Array[String] = ["Bronze", "Gold", "MagicSoul"]
+# Scroll 局部空间高（源 clip stencil 206×320；子节点 y = CLIP_H - cocos_y）
+const CLIP_H: float = 320.0
+# 源 doClickCheck:1576 CCMoveTo(0.2, (0,320)) EaseSineIn / doClickArrow:1584 EaseSineOut
+const SLIDE_OFFSET: float = 320.0
+const SLIDE_DURATION: float = 0.2
+# 源 playLightAnim :577 gold/magic light CCRotateBy(5, 360) 循环
+const LIGHT_ROTATE_SEC: float = 5.0
+const FULL_CIRCLE_DEG: float = 360.0
+# 源 tavern.lua:566-574 getArrowudAnim：arrow MoveBy(1, (0,-5)) SineInOut ↔ reverse 循环
+const ARROW_FLOAT_OFFSET_Y: float = -5.0
+const ARROW_FLOAT_SEC: float = 1.0
+const REFRESH_INTERVAL_SEC: float = 1.0
+const MAGIC_VIP_KEY: String = "Magic Soul Box"
+const LSTR_CHECK: StringName = &"RECHARGE.VIEW"
+const LSTR_BUY_D: StringName = &"TAVERN.BUY__D"
+const LSTR_DAY_TITLE: StringName = &"TAVERN.TODAYS_HIGHLIGHT"
+const LSTR_MONTH_TITLE: StringName = &"TAVERN.HOT_IN_THIS_WEEK"
+const LSTR_TEN_PROMPT: Dictionary = {
+	"bronze": &"TAVERNRES.ONE_BLUE_ITEM_IS_DOOMED_TO_BE_GOT_IF_YOU_DRAW_10TIMES_AT_ONE_TIME",
+	"gold": &"TAVERNRES.HERO_IS_DOOMED_TO_BE_GOT_IF_YOU_DRAW_10TIMES_AT_ONE_TIME",
+	"magic": &"TAVERNRES.CAN_GET_MULTIPLE_SOUL_STONES",
+}
+# LSTR key 缺失时的中文 fallback（cm.get_lstr 缺失返 key 本身，panel 判 key==val 走 fallback）
+const FALLBACK_CHECK: String = "查看"
+const FALLBACK_BUY_FMT: String = "购买%d个"
+const FALLBACK_DAY_TITLE: String = "今日热点"
+const FALLBACK_MONTH_TITLE: String = "本周热点"
+const FALLBACK_TEN_PROMPT: Dictionary = {
+	"bronze": "十连抽必得蓝色物品",
+	"gold": "十连抽必得英雄",
+	"magic": "可获大量灵魂石",
+}
+# 卡池标题 fallback（2026-09-15 英文美术贴图退役改 Label）：语言包无宝箱标题 key
+# （TUTORIALRES/PRIVILEGE 里只有间接文案），magic 照 PRIVILEGE.MAGIC_SOUL_BOX zh-CN 译名"魔幻魂匣"。
+const FALLBACK_TITLE: Dictionary = {
+	"bronze": "青铜宝箱",
+	"gold": "黄金宝箱",
+	"magic": "魔幻魂匣",
+}
+# 百抽三选一按钮文案（2026-10-07 自创功能，语言包无 key 直接中文，同 FALLBACK_TITLE 口径；
+# 千抽→百抽同日用户再拍板，入口文案随之改）
+const FALLBACK_THOUSAND_LABEL: String = "百抽三选一"
+
+var _cm: Variant = null
+var _player: PlayerData = null
+var _rng: BattleRng = null
+var _thousand_groups: Array = []   # 百抽当前候选组（重选时更新；chosen 结算读此，防重选后 bind 旧数组）
+var _thousand_btn: TextureButton = null   # 百抽入口（选定结算后隐藏，2026-10-07 用户需求）
+var _current_pool: String = "Bronze"
+var _boards: Dictionary = {}   # key -> board 节点 Dictionary（tscn 静态节点引用）
+var _content: Control = null
+var _result_label: Label = null
+var _count_labels: Dictionary = {}   # pool_key -> CountLabel（CostBg 条内倒计时/次数，2026-09-16 六轮迁回源位）
+var _preview_label: Label = null
+var _preview_container: HBoxContainer = null
+var _board_host: Control = null   # .tscn %BoardHost（3 board 挂载点）
+var _refresh_timer: float = 0.0
+
+
+func setup_panel(p_player: PlayerData, rng: BattleRng) -> void:
+	hud_identity = "tavern"   # T4：原 apply/remove override 样板上收基类
+	_player = p_player
+	_rng = rng
+	_cm = p_player.cm
+	setup()
+	_build_content()
+
+
+# 静态结构 instantiate + 面板级节点引用 + 3 board 绑定（fill 文案/费用 + 信号 connect）。
+func _build_content() -> void:
+	_content = CONTENT_SCENE.instantiate() as Control
+	container.add_child(_content)
+	_board_host = _content.get_node("%BoardHost") as Control
+	_result_label = _content.get_node("%ResultLabel") as Label
+	_preview_container = _content.get_node("%PreviewContainer") as HBoxContainer
+	_preview_label = _content.get_node("%PreviewLabel") as Label
+	var close_btn: TextureButton = _content.get_node("%CloseBtn") as TextureButton
+	close_btn.pressed.connect(remove_window)
+	_bind_thousand_button()
+	_bind_boards()
+	_refresh_countdown_labels()
+
+
+# 百抽三选一入口（面板顶部常驻，2026-10-07 自创功能；初版千抽同位置）：按钮在 tavern_content.tscn 根级
+# （TitleBg 右侧空区）——魔幻魂匣展开区（Scroll 局部 320-640）被源布局排满到 604，
+# 放 board 内会被 Clip 裁剪不可见（运行时实测 ThousandBuyBtn global y=446 > Clip 底 435）。
+# 百抽免费（用户拍板赠送不耗钻；千抽版免费语义沿袭），无费用行。一次性赠送：选定后按钮消失。
+func _bind_thousand_button() -> void:
+	var thousand_btn: TextureButton = _content.get_node_or_null("%ThousandBuyBtn") as TextureButton
+	if thousand_btn != null:
+		_thousand_btn = thousand_btn
+		(thousand_btn.get_node("ThousandBuyLabel") as Label).text = FALLBACK_THOUSAND_LABEL
+		thousand_btn.visible = not TavernThousandData.is_thousand_used(_player)
+		thousand_btn.pressed.connect(_on_thousand_pressed.bind("MagicSoul"))
+
+
+# 源 createItemLayer:1371：3 board 装配 + 末尾 playLightAnim（源 :1397 gold/magic light 旋转）。
+# board 静态结构在 tscn，此处只 bind（fill 文案/费用 + connect）+ 播动画。
+func _bind_boards() -> void:
+	for i in POOL_KEYS.size():
+		var key: String = POOL_KEYS[i]
+		var src_key: String = _src_key(key)
+		var cost_info: Dictionary = _read_cost_info(key)
+		var texts: Dictionary = _build_board_texts(src_key)
+		var board: Dictionary = _bind_board(key, cost_info, texts)
+		_boards[key] = board
+		_play_light_anim(board)
+		_play_arrow_float_anim(board)
+	_refresh_magic_board_visibility()
+
+
+# 绑定单张 board：tscn %XxxBoard 容器 + 相对路径取内部节点（board 内节点用通用名，
+# 不开 unique_name_in_owner——owner 级唯一，3 board 同名会冲突）+ fill + connect。
+# 返回 {container, scroll_board, check_btn, arrow_btn, once_btn, ten_btn,
+#   once_cost_lbl, ten_cost_lbl, count_lbl, box, light}（键名沿 builder 期约定，测试锚定）。
+func _bind_board(key: String, cost_info: Dictionary, texts: Dictionary) -> Dictionary:
+	# tscn 节点前缀：MagicSoul 池键对应短名 Magic（%MagicBoard）
+	var board_id: String = "Magic" if key == "MagicSoul" else key
+	var container: Control = _content.get_node("%" + board_id + "Board") as Control
+	var scroll: Control = container.get_node("Clip/Scroll") as Control
+	(container.get_node("TitleLabel") as Label).text = String(texts["title"])
+	var ad_label: Label = scroll.get_node("AdLabel") as Label
+	ad_label.text = String(texts["ad_text"])
+	var count_lbl: Label = scroll.get_node("CountLabel") as Label
+	_count_labels[key] = count_lbl
+	var check: TextureButton = scroll.get_node("CheckBtn") as TextureButton
+	(check.get_node("CheckLabel") as Label).text = String(texts["check_label"])
+	check.pressed.connect(_on_check_pressed.bind(key))
+	var arrow: TextureButton = scroll.get_node("ArrowBtn") as TextureButton
+	arrow.pressed.connect(_on_arrow_pressed.bind(key))
+	# 十连区（bronze/gold/magic 共有）：费用 + 提示 + 按钮
+	var ten_cost_lbl: Label = scroll.get_node("TenCostLabel") as Label
+	ten_cost_lbl.text = str(int(cost_info.get("ten_cost", 0)))
+	var ten_prompt: Label = scroll.get_node("TenPromptLabel") as Label
+	ten_prompt.text = String(texts["ten_prompt_text"])
+	var ten_buy: TextureButton = scroll.get_node("TenBuyBtn") as TextureButton
+	(ten_buy.get_node("TenBuyLabel") as Label).text = String(texts["ten_label"])
+	ten_buy.pressed.connect(_on_ten_pressed.bind(key))
+	# 单抽区（源 magic 无 one 条目 → tscn 无单抽区，once_btn 为 null）
+	var once_btn: TextureButton = scroll.get_node_or_null("OneBuyBtn") as TextureButton
+	var once_cost_lbl: Label = null
+	if once_btn != null:
+		(once_btn.get_node("OneBuyLabel") as Label).text = String(texts["once_label"])
+		once_btn.pressed.connect(_on_once_pressed.bind(key))
+		once_cost_lbl = scroll.get_node("OneCostLabel") as Label
+		once_cost_lbl.text = str(int(cost_info.get("once_cost", 0)))
+	# magic drop_bg 标题（源 drop_day_title :1113 / drop_month_title :1139）。
+	# 百抽三选一入口在面板顶部根级（_bind_thousand_button），非 board 内。
+	if key == "MagicSoul":
+		(scroll.get_node("DayTitle") as Label).text = String(texts["day_title"])
+		(scroll.get_node("MonthTitle") as Label).text = String(texts["month_title"])
+	return {
+		"container": container,
+		"scroll_board": scroll,
+		"check_btn": check,
+		"arrow_btn": arrow,
+		"once_btn": once_btn,
+		"ten_btn": ten_buy,
+		"once_cost_lbl": once_cost_lbl,
+		"ten_cost_lbl": ten_cost_lbl,
+		"count_lbl": count_lbl,
+		"once_cost": int(cost_info.get("once_cost", 0)),
+		"ten_cost": int(cost_info.get("ten_cost", 0)),
+		"box": scroll.get_node("Box") as TextureRect,
+		"light": scroll.get_node_or_null("Light") as TextureRect,
+	}
+
+
+# showvip > vip → magicLayer.setVisible(false)（源同时重排 bronze/gold 居中；本项目简化保 3 board 横排孔位）。
+# showvip <= vip → magicLayer.setVisible(true)（达 unlock-2 起显示；达 unlock 可抽，_on_draw 内门控）。
+# 单机去 VIP 限制：显隐按特权档（满级）判 → 恒显示。
+func _refresh_magic_board_visibility() -> void:
+	if _player == null or _cm == null:
+		return
+	var showvip: int = VipData.get_area_show_vip(MAGIC_VIP_KEY, _cm)
+	var magic_board: Dictionary = _boards.get("MagicSoul", {})
+	if magic_board.is_empty():
+		return
+	var container: Control = magic_board.get("container", null)
+	if container != null:
+		container.visible = showvip <= _player.privilege_vip_level()
+
+
+func _build_board_texts(src_key: String) -> Dictionary:
+	return {
+		# 2026-09-15 英文美术贴图退役改 Label：标题走 fallback 中文（语言包无宝箱标题 key），
+		# 描述复用 TAVERNRES.* 语言包 key（源贴图文案为过时英文版——10x/30x/50x 数字与现行
+		# 配置脱节且含 "Bule" 拼写错误，语言包 ten_prompt 才是与配置配套的保底文案）。
+		"title": String(FALLBACK_TITLE.get(src_key, "")),
+		"ad_text": _ten_prompt_text(src_key),
+		"check_label": _lstr_or(LSTR_CHECK, FALLBACK_CHECK),
+		"once_label": _lstr_or(LSTR_BUY_D, FALLBACK_BUY_FMT) % 1,
+		# magic ten_buy 标签照源 :1225 = BUY__D % 1（唯一按钮按单抽计费）
+		"ten_label": _lstr_or(LSTR_BUY_D, FALLBACK_BUY_FMT) % (1 if src_key == "magic" else 10),
+		"day_title": _lstr_or(LSTR_DAY_TITLE, FALLBACK_DAY_TITLE),
+		"month_title": _lstr_or(LSTR_MONTH_TITLE, FALLBACK_MONTH_TITLE),
+		"ten_prompt_text": _ten_prompt_text(src_key),
+	}
+
+
+func _ten_prompt_text(src_key: String) -> String:
+	var lstr_key: StringName = LSTR_TEN_PROMPT.get(src_key, &"")
+	if lstr_key == &"":
+		return String(FALLBACK_TEN_PROMPT.get(src_key, ""))
+	return _lstr_or(lstr_key, String(FALLBACK_TEN_PROMPT.get(src_key, "")))
+
+
+# cm.get_lstr 缺失（返 key 本身）→ fallback。key 用 StringName 避免 String 比较开销。
+func _lstr_or(key: StringName, fallback: String) -> String:
+	if _cm == null or not _cm.has_method("get_lstr"):
+		return fallback
+	var v: String = _cm.get_lstr(String(key))
+	return v if v != String(key) else fallback
+
+
+func _src_key(pool_key: String) -> String:
+	match pool_key:
+		"Bronze": return "bronze"
+		"Gold": return "gold"
+		"MagicSoul": return "magic"
+		_: return "bronze"
+
+
+func _read_cost_info(key: String) -> Dictionary:
+	var once_row: Dictionary = TavernData.get_tavern_info(key, false, false, 0, _cm)
+	var ten_row: Dictionary = TavernData.get_tavern_info(key, true, false, 0, _cm)
+	var once_cost: int = int(once_row.get("Cost", 0)) if not once_row.is_empty() else 0
+	var once_pay: String = String(once_row.get("Cost Type", "Diamond")) if not once_row.is_empty() else "Diamond"
+	return {
+		"once_cost": once_cost,
+		"ten_cost": int(ten_row.get("Cost", 0)),
+		"once_pay": once_pay,
+		"ten_pay": String(ten_row.get("Cost Type", "Diamond")),
+	}
+
+
+# 切当前 pool + 刷新倒计时/Magic 预览（供 _on_check_pressed 与外部切池调用，不触滑动）。
+func _select_pool(key: String) -> void:
+	_current_pool = key
+	_refresh_countdown_labels()
+	_refresh_magicsoul_preview(key)
+
+
+func _on_check_pressed(key: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	_select_pool(key)
+	_expand_scroll((_boards[key] as Dictionary)["scroll_board"] as Control)
+
+
+func _on_arrow_pressed(key: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	_collapse_scroll((_boards[key] as Dictionary)["scroll_board"] as Control)
+
+
+func _on_once_pressed(key: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	_on_draw(_player, _rng, key, false)
+
+
+func _on_ten_pressed(key: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	_on_draw(_player, _rng, key, true)
+
+
+# 源 doClickCheck:1576：scroll_board CCMoveTo(0.2,(0,320)) EaseSineIn（cocos y 向上 320
+# = Godot y 向下 -320）→ Tween TRANS_SINE EASE_IN。
+func _expand_scroll(scroll: Control) -> void:
+	var tw: Tween = scroll.create_tween()
+	tw.tween_property(scroll, "position:y", -SLIDE_OFFSET, SLIDE_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+# 源 doClickArrow:1584：CCMoveTo(0.2,(0,0)) EaseSineOut。
+func _collapse_scroll(scroll: Control) -> void:
+	var tw: Tween = scroll.create_tween()
+	tw.tween_property(scroll, "position:y", 0.0, SLIDE_DURATION) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+# 源 playLightAnim :577-590 gold/magic light CCRotateBy(5,360) RepeatForever。
+# TextureRect rotation 绕 pivot_offset，照源 Sprite anchor(0.5,0.5) → pivot=size/2。
+# .from(0.0) 必须显式：循环重播时"当前值==目标值(2π)"会瞬间完成耗尽循环，光圈转一圈即死。
+func _play_light_anim(board: Dictionary) -> void:
+	var light: TextureRect = board.get("light", null)
+	if light == null:
+		return
+	light.pivot_offset = light.size * 0.5
+	var tw: Tween = light.create_tween().set_loops()
+	tw.tween_property(light, "rotation", deg_to_rad(FULL_CIRCLE_DEG), LIGHT_ROTATE_SEC) \
+		.from(0.0)
+
+
+# 源 tavern.lua:566-574 getArrowudAnim：arrow MoveBy(1,(0,-5)) SineInOut ↔ reverse 循环。
+# .from() 同 _play_light_anim：显式锚定每轮起点，防绝对目标值循环一轮死。
+# 不做 is_inside_tree guard：bind 时刻（setup_panel→_build_content）面板尚未 show_window
+# 进树，guard 会静默 return 致动画从未创建（箭头浮动自迁移以来一直死的根因）；
+# Tween 绑定节点，进树后自动开始播放（同 _play_light_anim）。
+func _play_arrow_float_anim(board: Dictionary) -> void:
+	var arrow: TextureButton = board.get("arrow_btn", null)
+	if arrow == null:
+		return
+	var base_y: float = arrow.position.y
+	var tw: Tween = arrow.create_tween().set_loops()
+	tw.tween_property(arrow, "position:y", base_y + ARROW_FLOAT_OFFSET_Y, ARROW_FLOAT_SEC) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT) \
+		.from(base_y)
+	tw.tween_property(arrow, "position:y", base_y, ARROW_FLOAT_SEC) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT) \
+		.from(base_y + ARROW_FLOAT_OFFSET_Y)
+	arrow.set_meta(&"arrow_float_active", true)   # headless 测试查 meta（Tween 推进不可靠）
+
+
+# magic scroll_board drop_bg heroIcons 4 组（照源 left3+right1+day3+month1）+
+# 面板级 _preview_container 单行（兼容 test_tavern_magic，前 4 hero）。
+func _refresh_magicsoul_preview(key: String) -> void:
+	if _preview_label == null or _preview_container == null:
+		return
+	if key == "MagicSoul" and _rng != null:
+		var ids: Array[int] = TavernData.ask_magicsoul(_rng, _cm)
+		_preview_label.text = "今日魂匣预览："
+		_preview_label.visible = true
+		# 面板级预览（兼容 test_tavern_magic，单行横排前 4 hero：extra+3hero）
+		for c in _preview_container.get_children(): c.queue_free()
+		for i in range(mini(ids.size(), 4)):
+			var icon := _make_hero_preview_icon(ids[i])
+			if icon != null:
+				_preview_container.add_child(icon)
+		_preview_container.visible = true
+		# magic scroll_board drop_bg heroIcons 4 组（照源 doRefrehMagicHeroIcon:1290）
+		_fill_magic_heroicons(ids)
+	else:
+		_preview_label.visible = false
+		_preview_container.visible = false
+
+
+# ids[0]=extra(hids[1]→right/month) ids[1,2,3]=hero(hids[2,3,4]→left/day)，照源 hids[5,6] 未用。
+func _fill_magic_heroicons(ids: Array[int]) -> void:
+	var magic: Dictionary = _boards.get("MagicSoul", {})
+	if magic.is_empty():
+		return
+	var scroll: Control = magic["scroll_board"]
+	# 清旧 heroIcons（set_meta "magic_icon" 标记）
+	for c in scroll.get_children():
+		if c.has_meta("magic_icon"):
+			c.queue_free()
+	if ids.is_empty():
+		return
+	var extra_id: int = ids[0]
+	var hero_ids: Array[int] = []
+	for i in range(1, mini(ids.size(), 4)):
+		hero_ids.append(ids[i])
+	# left 3 hero（源 ccp(42,175)/(82,175)/(122,175)，ox=42 dx=40；六轮 DropBg 上移 15，
+	# left/right 组 cy 175→190 跟随，Godot 中心 130=新 DropBg(105-155) 中心）
+	for i in hero_ids.size():
+		_add_magic_icon(scroll, hero_ids[i], 42.0 + 40.0 * float(i), 190.0)
+	# right 1 extra（源 ccp(175,175)；六轮随 DropBg 上移）
+	_add_magic_icon(scroll, extra_id, 175.0, 190.0)
+	# day 3 hero（源 ccp(66,-140)/(108,-140)/(150,-140)，ox=66 dx=42）
+	for i in hero_ids.size():
+		_add_magic_icon(scroll, hero_ids[i], 66.0 + 42.0 * float(i), -140.0)
+	# month 1 extra（源 ccp(107,-63)）
+	_add_magic_icon(scroll, extra_id, 107.0, -63.0)
+
+
+func _add_magic_icon(scroll: Control, tid: int, cx: float, cy: float) -> void:
+	var icon := _make_hero_preview_icon(tid)
+	if icon == null:
+		return
+	icon.set_meta("magic_icon", true)
+	icon.custom_minimum_size = Vector2(38.0, 38.0)
+	icon.size = Vector2(38.0, 38.0)
+	icon.position = Vector2(cx, CLIP_H - cy) - icon.size * 0.5
+	scroll.add_child(icon)
+
+
+func _make_hero_preview_icon(tid: int) -> Control:
+	# 源 tavern.lua:1307/1318/1332/1344 readhero.createIcon({id=id, length=38}).icon：
+	# 头像图标（品质框，info 无 rank → 源默认 1）。源 container 是 CCSprite
+	# anchor(0.5,0.5)：setPosition 定位容器中心、setScale(38/portrait_w) 缩放围绕
+	# 容器中心。Godot 复刻：包 38×38 wrap（几何中心=源定位点），缩放走 setup
+	# length 分支（设于内部 icon 层），再把容器中心 Godot(52,52) 平移到 wrap 中心
+	# (19,19)。portrait 贴容器左下（视觉中心局部 (39,65)≠容器中心）→ 相对 wrap
+	# 中心恒偏 (-13,+13)*s，与源锚点行为一致。旧实现按"容器中心=视觉中心"且把容器
+	# 中心对到 wrap 左上角 (0,0)，双重偏差 (-23.75,-14.25)——魂匣热点图标整体
+	# 左偏 24/上偏 10~14 的根因（2026-09-16）。
+	var wrap := Control.new()
+	wrap.custom_minimum_size = Vector2(38.0, 38.0)
+	wrap.size = Vector2(38.0, 38.0)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ri := ReadheroIcon.new()
+	ri.setup({"id": tid, "rank": 1, "length": 38.0}, _cm)
+	var s: float = ri.icon.scale.x
+	ri.icon.position = wrap.size * 0.5 - ReadheroIcon.CONTAINER_SIZE * 0.5 * s
+	wrap.add_child(ri)
+	return wrap
+
+
+func _on_draw(p_player: PlayerData, rng: BattleRng, tavern_type: String, is_ten: bool) -> void:
+	# 项目单机化用 Toast（源 toRecharge dialog 的 explaination 文案）。
+	# 单机去 VIP 限制：门禁按特权档（满级）判 → 恒通过，保留结构备 module_switch 类手动关。
+	if tavern_type == "MagicSoul" and _magic_vip_blocked():
+		return
+	var now: int = int(Time.get_unix_time_from_system())
+	var is_free: bool = TavernData.is_show_free(p_player, tavern_type, now) and (tavern_type == "MagicSoul" or not is_ten)
+	var r: Dictionary = p_player.draw_tavern_full(tavern_type, is_ten, is_free, 0, rng)
+	if not bool(r["ok"]):
+		# 源 tavern.lua:83-92 资源不足 showHandyDialog(useMidas/toRecharge) 弹窗级反馈；
+		# 单机化 Toast 带货币与需求量（照 shop_panel「钻石不足（需 %d）」文案惯例，2026-09-07）。
+		var need_row: Dictionary = TavernData.get_tavern_info(tavern_type, is_ten, false, 0, _cm)
+		var pay_name: String = "金币" if String(need_row.get("Cost Type", "Diamond")) == "Gold" else "钻石"
+		var need: int = int(need_row.get("Cost", 0))
+		_result_label.text = "资源不足"
+		Toast.show_message("%s不足（需 %d）" % [pay_name, need])
+		return
+	if is_free:
+		TavernData.use_free_tavern(p_player, tavern_type, now)
+	TavernData.refresh_first_tavern(p_player, tavern_type, is_ten)
+	GameData.mark_save_dirty()
+	_result_label.text = "产出已展示"
+	var loot_popup := PopTavernLoot.new("poptavernloot", {})
+	var popup_cost: Dictionary = {"pay": "Diamond", "number": 0}
+	if not is_free:
+		var row: Dictionary = TavernData.get_tavern_info(tavern_type, is_ten, false, 0, _cm)
+		popup_cost = {"pay": String(row.get("Cost Type", "Diamond")), "number": int(row.get("Cost", 0))}
+	loot_popup.setup_loot(r["loots"], p_player.cm, tavern_type.to_lower(), "ten" if is_ten else "one", popup_cost)
+	# 源 tavern.lua:204 popWindow.tavernHandler = doTavernHandler(box, times)：弹窗"再抽"退场后
+	# 重走一次完整抽卡（闭包捕获四参等价源闭包捕获 box/times）。2026-09-07 再抽无反应根修：
+	# 此前从未 connect，draw_again 发了没人听 = 只关窗不再抽。
+	loot_popup.draw_again.connect(func() -> void: _on_draw(p_player, rng, tavern_type, is_ten))
+	loot_popup.show_window(get_parent())
+	drawn.emit()
+	_refresh_countdown_labels()
+
+
+# magic VIP 门禁（单机满级恒过）：拦截时已反馈（label + Toast），返 true。
+# 从 _on_draw 原内联块提取（2026-10-07 百抽入口复用；文案/死分支 fallback 原样保留）。
+func _magic_vip_blocked() -> bool:
+	var ulv: int = VipData.get_area_unlock_vip(MAGIC_VIP_KEY, _cm)
+	if ulv <= _player.privilege_vip_level():
+		return false
+	var tpl: String = String(_cm.get_lstr("TAVERN.VIP_LEVEL_TO_D_LEVELS_TO_UNLOCK_THIS_FEATURE_NEED_CHARGE"))
+	if tpl == "TAVERN.VIP_LEVEL_TO_D_LEVELS_TO_UNLOCK_THIS_FEATURE_NEED_CHARGE":
+		tpl = "VIP等级达到%d级解锁该功能"   # 死分支 fallback 文案（2026-09-17 去充值引导）
+	_result_label.text = tpl % ulv
+	Toast.show_message(tpl % ulv)
+	return true
+
+
+# 百抽三选一（2026-10-07 自创功能，免费赠送；千抽→百抽同日用户再拍板——千抽 102 格
+# 连弹+循环光效真机过载卡顿）：roll 3 组独立 100 抽结果 →
+# PopTavernThousand 三选一 → 选定组结算入包（chosen 回调），其余作废。
+# 用户拍板「送 1000 抽，不消耗钻石」→ 再拍板「换成一百抽」——无扣费环节，
+# 任务进度按 COMBO_GROUPS 组十连计。
+func _on_thousand_pressed(key: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	if key != "MagicSoul" or _magic_vip_blocked():
+		return
+	TavernThousandData.record_thousand_use(_player, _cm)
+	_thousand_groups = TavernThousandData.roll_thousand_groups(_rng, _cm)
+	TavernData.refresh_first_tavern(_player, "MagicSoul", true)
+	GameData.mark_save_dirty()
+	var pick := PopTavernThousand.new("poptaverntousand", {})
+	pick.setup_pick(_thousand_groups, _cm)
+	pick.chosen.connect(_on_thousand_chosen)
+	pick.reroll_requested.connect(_on_thousand_reroll.bind(pick))
+	pick.show_window(get_parent())
+	drawn.emit()
+	_refresh_countdown_labels()
+
+
+# 百抽重选（弹窗"重选"回调，2026-10-07 用户需求：不满意免费重选）：重 roll 3 组回填弹窗，
+# 不关窗。不记任务进度/不动首抽标记（百抽使用只记一次）；候选未选定不入包、不动存档。
+func _on_thousand_reroll(pick: PopTavernThousand) -> void:
+	_thousand_groups = TavernThousandData.roll_thousand_groups(_rng, _cm)
+	pick.update_groups(_thousand_groups)
+
+
+# 选定组结算：仅选中组入包（读 _thousand_groups 当前成员）；置一次性标记+隐藏入口按钮（防免费重复领）。
+func _on_thousand_chosen(index: int) -> void:
+	TavernThousandData.settle_thousand_group(_player, _thousand_groups[index], _cm)
+	TavernThousandData.mark_thousand_used(_player)
+	if _thousand_btn != null:
+		_thousand_btn.visible = false
+	GameData.mark_save_dirty()
+	_result_label.text = "百抽奖励已入包"
+	Toast.show_message("百抽奖励已入包")
+	_refresh_countdown_labels()
+
+
+# 免费状态刷新（源 refreshCountdownHandler + refreshCost isFree 分支，单机化合并一处刷）：
+# ① 每卡 CountLabel（CostBg 单色条内，2026-09-16 六轮从 AdLabel 第二行迁回源位 y=135 底条）——
+#   CD 态 "HH:MM:SS 后免费"（源 countLabel+countSuffix 组合，受控偏离：单条恒白替代源金时间+白后缀双色）；
+#   bronze 无 CD 态 "剩余免费次数 N/5"（源单条居中 countLabel 文案）；gold/magic 空照源。
+# ② 费用条免费档 "免费" 替代价格（源 isFree 时 one_cost/magic ten_cost 置 GUILDCONFIG.FREE：
+#   bronze/gold 单抽免费档、magic 十连免费档；2026-09-15 三轮补齐，此前费用条恒显价格）。
+func _refresh_countdown_labels() -> void:
+	if _player == null:
+		return
+	var now: int = int(Time.get_unix_time_from_system())
+	for key: String in POOL_KEYS:
+		var count_label: Label = _count_labels.get(key, null)
+		if count_label != null:
+			var cd: Dictionary = TavernData.get_countdown_text(_player, key, now)
+			if bool(cd["is_counting"]):
+				count_label.text = "%s 后免费" % String(cd["text"])
+			else:
+				count_label.text = String(cd["text"])
+		_refresh_free_cost(key, now)
+
+
+# 费用条 "免费"/价格 切换（源 refreshCost :460-497 isFree 分支：isShowFree false 时恢复价格）。
+func _refresh_free_cost(key: String, now: int) -> void:
+	var board: Dictionary = _boards.get(key, {})
+	if board.is_empty():
+		return
+	var is_free: bool = TavernData.is_show_free(_player, key, now)
+	var once_lbl: Label = board.get("once_cost_lbl", null)
+	if once_lbl != null:
+		once_lbl.text = "免费" if is_free else str(int(board.get("once_cost", 0)))
+	# 源仅 magic 十连费用走免费替代（bronze/gold 十连恒付费）
+	var ten_lbl: Label = board.get("ten_cost_lbl", null)
+	if ten_lbl != null and key == "MagicSoul":
+		ten_lbl.text = "免费" if is_free else str(int(board.get("ten_cost", 0)))
+
+
+func _process(delta: float) -> void:
+	_refresh_timer += delta
+	if _refresh_timer >= REFRESH_INTERVAL_SEC:
+		_refresh_timer = 0.0
+		_refresh_countdown_labels()

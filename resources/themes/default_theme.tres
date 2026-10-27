@@ -1,0 +1,1884 @@
+[gd_resource type="Theme" load_steps=78 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herodetail-upgrade.png" id="5_upg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herodetail-upgrade-mask.png" id="6_upgm"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/equip_detail_panel_bg.png" id="7_edpanel"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/sell_number_button.png" id="8_selln"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/sell_number_button_down.png" id="9_sellp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/task_button.png" id="10_taskn"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/task_button_press.png" id="11_taskp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/classbtn.png" id="12_classbtn"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/classbtnselected.png" id="13_classbtnsel"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/tavern_button_normal_1.png" id="14_dlbtn1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/tavern_button_normal_2.png" id="15_dlbtn2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/tavern_button_1.png" id="16_miduse1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/tavern_button_2.png" id="17_miduse2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/package_button.png" id="18_pkgn"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/package_button_down.png" id="19_pkgp"]
+[ext_resource type="FontFile" path="res://resources/fonts/arial_unicode_ms.ttf" id="20_arialuni"]
+; ── 2026-09-10 二轮按钮高度根修：herodetail-upgrade 系九宫格烘焙成品图（assets/ui/baked/）──
+; 根因=实机（真 GPU）StyleBoxTexture.get_minimum_size() 返回 texture_margin 之和，Button
+; min=size 计入 → margin(57,38)+字高(28)=min(97,66) 把源 49/45 高按钮实机撑到 66+（四处
+; 确认框/equip 强化/碎片合成全族）；headless 下 sb_min=(8,8) 环境差异致 GUT 守卫假绿。
+; 修=九宫格语义离线烘焙为各按钮源尺寸成品图（帽原样+中段 LANCZOS，生成脚本见
+; 验收记录-召唤确认框按钮变形根修-2026-09-10 二轮节），margin=0 后 min=字高，尺寸直译生效。
+[ext_resource type="Texture2D" path="res://assets/ui/baked/confirm_btn_120x49_n.png" id="21_bkconfn"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/confirm_btn_120x49_p.png" id="22_bkconfp"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/stren_btn_125x45_n.png" id="23_bkstrn"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/stren_btn_125x45_p.png" id="24_bkstrp"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/select_hero_btn_110x45_n.png" id="25_bkseln"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/select_hero_btn_110x45_p.png" id="26_bkselp"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/fc_ok_btn_250x49_n.png" id="27_bkfcn"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/fc_ok_btn_250x49_p.png" id="28_bkfcp"]
+; ── 2026-09-11 herodetail-detail 系烘焙（英雄详情 tab/进阶觉醒/宝石返回；同机制，批 1 遗留
+; SB_detail top/bottom 互换截掉底帽 18px + 实机 min 撑高双重根因；三档尺寸各自烘焙）──
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_tab_btn_120x49_n.png" id="29_dtabn"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_tab_btn_120x49_a.png" id="30_dtaba"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_tab_btn_120x49_p.png" id="31_dtabp"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_rank_btn_100x42_n.png" id="32_drkn"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_rank_btn_100x42_p.png" id="33_drkp"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_stone_ok_btn_200x49_n.png" id="34_dson"]
+[ext_resource type="Texture2D" path="res://assets/ui/baked/detail_stone_ok_btn_200x49_p.png" id="35_dsop"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0oxu6"]
+
+; ── hero_split 三件套（批 1 Task 8，2026-08-15）── sell_number/task 按钮 Scale9 三态
+; （源 uieditor/herosplit.lua capInsets 纹理像素直译；confirm ok cap(14.06,15.63,...) 与
+; window 按钮 cap(15.63,15.63,...) 不同 margin 故独立 StyleBox）
+; cap 换算（批 1 终审必修 1 修正）：cap CCRectMake(x,y,w,h) 为左下原点 UI 坐标直传 Cocos，
+; StyleBox margin_left=x / margin_top=H-y-h / margin_right=W-x-w / margin_bottom=y。
+; sell_number(63x67) cap(15.63,15.63,19.53,19.53)：top=67-15.63-19.53=31.84 bottom=15.63；
+; task_button(96x63) cap(15.63,15.63,39.06,15.63)：top=63-31.26=31.74 bottom=15.63；
+; confirm ok(63x67) cap(14.06,15.63,15.63,17.19)：top=67-32.82=34.18 bottom=15.63。
+[sub_resource type="StyleBoxTexture" id="SB_hs_sell_n"]
+texture = ExtResource("8_selln")
+texture_margin_left = 15.63
+texture_margin_top = 31.84
+texture_margin_right = 27.84
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_hs_sell_p"]
+texture = ExtResource("9_sellp")
+texture_margin_left = 15.63
+texture_margin_top = 31.84
+texture_margin_right = 27.84
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_hs_task_n"]
+texture = ExtResource("10_taskn")
+texture_margin_left = 15.63
+texture_margin_top = 31.74
+texture_margin_right = 41.31
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_hs_task_p"]
+texture = ExtResource("11_taskp")
+texture_margin_left = 15.63
+texture_margin_top = 31.74
+texture_margin_right = 41.31
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_hs_ok_n"]
+texture = ExtResource("8_selln")
+texture_margin_left = 14.06
+texture_margin_top = 34.18
+texture_margin_right = 33.31
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_hs_ok_p"]
+texture = ExtResource("9_sellp")
+texture_margin_left = 14.06
+texture_margin_top = 34.18
+texture_margin_right = 33.31
+texture_margin_bottom = 15.63
+
+; ── hero_package（批 1 Task 9，2026-08-15）── herosplit 按钮 Scale9 三态
+; （源 heropackage.lua:680-710 classbtn(134x75)/classbtnselected(145x75) cap CCRectMake(40,25,40,25)
+; 纹理像素直译（top=H-y-h/bottom=y）：left=40 top=75-50=25 right=134-80=54 bottom=25（垂直对称）；
+; pressed 右=145-80=65，口径同 SB_upgrade_n）
+[sub_resource type="StyleBoxTexture" id="SB_hp_split_n"]
+texture = ExtResource("12_classbtn")
+texture_margin_left = 40.0
+texture_margin_top = 25.0
+texture_margin_right = 54.0
+texture_margin_bottom = 25.0
+
+[sub_resource type="StyleBoxTexture" id="SB_hp_split_p"]
+texture = ExtResource("13_classbtnsel")
+texture_margin_left = 40.0
+texture_margin_top = 25.0
+texture_margin_right = 65.0
+texture_margin_bottom = 25.0
+
+; hero_detail tab 底：herodetail-detail-*.png 219x67，cap CCRectMake(15,15,138,19)
+; （stonedetail.lua:561 / herodetail/window.lua:1406）。2026-09-11 五轮判例订正：Cocos
+; CCRect y 从贴图底部起算（左下原点坐标系）→ 图像坐标 l=15 t=H-(y+h)=33 r=66 b=y=15；
+; 一轮"capRect 左上原点直译（t=15/b=33）"系误判（PIL 亮度验证未分辨上下方向），四轮按
+; 误口径烘焙出"细红芯+厚底座"=用户 F5 所见变形，五轮按正确口径重烘=红芯大头（用户 MuMu
+; 参考图实证）。批 1 公式 top=H-y-h 本就正确，批 1 期 SB_detail 真正病灶是实机 min 撑高。
+; margin=0 烘焙防 Button min 撑高不变；a 态源 124x50 凸边按 rect 120x49 烘焙记验收记录。
+; 生成脚本见 验收记录-召唤确认框按钮变形根修-2026-09-10.md 四/五轮节。
+[sub_resource type="StyleBoxTexture" id="SB_detail_n"]
+texture = ExtResource("29_dtabn")
+
+[sub_resource type="StyleBoxTexture" id="SB_detail_a"]
+texture = ExtResource("30_dtaba")
+
+[sub_resource type="StyleBoxTexture" id="SB_detail_p"]
+texture = ExtResource("31_dtabp")
+
+; 进阶/觉醒按钮（源 window.lua:2095 upgrade 及 awake 同款 herodetail-detail-n
+; cap(15,15,138,19) scaleSize(100,42)）：与 tab 尺寸不同故独立 SB（帽和 48>42，
+; 烘焙时按 Godot margin 等比压缩为 t13/b29，中段 0 属预期）。
+[sub_resource type="StyleBoxTexture" id="SB_detail_rank_n"]
+texture = ExtResource("32_drkn")
+
+[sub_resource type="StyleBoxTexture" id="SB_detail_rank_p"]
+texture = ExtResource("33_drkp")
+
+; 宝石详情返回按钮（源 stonedetail.lua:561 ok scaleSize(200,49)）：
+; 同贴图第三档尺寸，独立 SB 防跨档拉伸。
+[sub_resource type="StyleBoxTexture" id="SB_detail_stone_ok_n"]
+texture = ExtResource("34_dson")
+
+[sub_resource type="StyleBoxTexture" id="SB_detail_stone_ok_p"]
+texture = ExtResource("35_dsop")
+
+; equip_strengthen 强化按钮底：源 createStrenButton:867-880 stren/faststren Scale9
+; herodetail-upgrade capInsets CCRectMake(20,20,53,29)（97x67）。2026-09-10 二轮换烘焙
+; 成品图 stren_btn_125x45（帽 20/20/24/18 烘入图，margin=0 防 Button min 撑高——见
+; 头部 ext_resource 21-28 注释）；按钮 rect 须为 125x45 与图等大（draw_center 整绘）。
+[sub_resource type="StyleBoxTexture" id="SB_upgrade_n"]
+texture = ExtResource("23_bkstrn")
+
+[sub_resource type="StyleBoxTexture" id="SB_upgrade_p"]
+texture = ExtResource("24_bkstrp")
+
+; equip_strengthen 选英雄按钮（源 herodetail-upgrade 110x45 同 cap）：与 stren 尺寸不同
+; 故独立 SB（2026-09-10 二轮从 EquipStrenButton 拆出，SelectHeroBtn 走本样式）。
+[sub_resource type="StyleBoxTexture" id="SB_equip_select_n"]
+texture = ExtResource("25_bkseln")
+
+[sub_resource type="StyleBoxTexture" id="SB_equip_select_p"]
+texture = ExtResource("26_bkselp")
+
+; fragment_compose 合成按钮底：源 fragmentcompose.lua:426-465 ok/ok_down Scale9
+; herodetail-upgrade capInsets CCRectMake(20,20,20,20)（97x67 → l=20 t=20 r=57 b=67-40=27）。
+; 2026-09-10 二轮换烘焙成品图 fc_ok_btn_250x49（margin=0 防 min 撑高）+top/bottom 互换
+; 一并随烘焙口径修正（旧 27/20 系批 1 翻转公式误写）。
+[sub_resource type="StyleBoxTexture" id="SB_fc_ok_n"]
+texture = ExtResource("27_bkfcn")
+
+[sub_resource type="StyleBoxTexture" id="SB_fc_ok_p"]
+texture = ExtResource("28_bkfcp")
+
+; equip_detail 段面板底（批 1 Task 7）：源 equipdetail.lua :152/188/228
+; createScale9Sprite equip_detail_panel_bg capInsets CCRectMake(10,30,400,65)
+; （贴图 533x175，cap 左下原点 → left=10 top=175-30-65=80 right=533-410=123
+; bottom=y=30）；content margin 照源网格位（面板 560 宽 - 两列 260=520 →
+; 左右 20；行高 55 公式 15+55r → 顶/底 7.5）。
+[sub_resource type="StyleBoxTexture" id="SB_equip_detail_panel"]
+texture = ExtResource("7_edpanel")
+texture_margin_left = 10.0
+texture_margin_top = 80.0
+texture_margin_right = 123.0
+texture_margin_bottom = 30.0
+content_margin_left = 20.0
+content_margin_top = 7.5
+content_margin_right = 20.0
+content_margin_bottom = 7.5
+
+; package 图鉴按钮（批 2 Task 2）：源 package.lua:466-497 handbook Scale9Sprite
+; sell_number_button(63x67) cap CCRectMake(15,22,15,25) 纹理像素直译
+; （Task 1 公式：left=15 top=67-22-25=20 right=63-15-15=33 bottom=22），
+; press 层 sell_number_button_down 同 cap。
+[sub_resource type="StyleBoxTexture" id="SB_pkg_hb_n"]
+texture = ExtResource("8_selln")
+texture_margin_left = 15.0
+texture_margin_top = 20.0
+texture_margin_right = 33.0
+texture_margin_bottom = 22.0
+
+[sub_resource type="StyleBoxTexture" id="SB_pkg_hb_p"]
+texture = ExtResource("9_sellp")
+texture_margin_left = 15.0
+texture_margin_top = 20.0
+texture_margin_right = 33.0
+texture_margin_bottom = 22.0
+
+; daily_login 奖励说明按钮（批 2 Task 3）：源 dailylogin.lua:827-857 explain/explain_press
+; Scale9Sprite tavern_button_normal(166x63) cap CCRectMake(20,15,88,19) 纹理像素直译
+; （批 1 公式：left=20 top=63-15-19=29 right=166-20-88=58 bottom=15），press 层同 cap。
+[sub_resource type="StyleBoxTexture" id="SB_dl_explain_n"]
+texture = ExtResource("14_dlbtn1")
+texture_margin_left = 20.0
+texture_margin_top = 29.0
+texture_margin_right = 58.0
+texture_margin_bottom = 15.0
+
+[sub_resource type="StyleBoxTexture" id="SB_dl_explain_p"]
+texture = ExtResource("15_dlbtn2")
+texture_margin_left = 20.0
+texture_margin_top = 29.0
+texture_margin_right = 58.0
+texture_margin_bottom = 15.0
+
+; star_shop 购买确认按钮（批 2 Task 4）：源 uieditor/starshopbuywindow.lua cancel/ok
+; DGButton shop_star_button_1/2.png 源导出物未含 → StyleBoxFlat 降级（hero_split
+; sb_frame 同款先例：暖棕填充 + 金边，pressed 变暗区分态）
+[sub_resource type="StyleBoxFlat" id="SB_ssbuy_n"]
+bg_color = Color(0.55, 0.42, 0.24, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.85, 0.7, 0.35, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_left = 6
+corner_radius_bottom_right = 6
+
+[sub_resource type="StyleBoxFlat" id="SB_ssbuy_p"]
+bg_color = Color(0.42, 0.31, 0.17, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.56, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_left = 6
+corner_radius_bottom_right = 6
+
+; mail overfull 按钮（批 2 Task 5）：源 uieditor/mailoverfull.lua DGButton
+; sell_number_button(63x67) cap CCRectMake(15.63,15.63,19.53,15.63) 纹理像素直译
+; （批 1 公式：left=15.63 top=67-15.63-15.63=35.74 right=63-15.63-19.53=27.84
+; bottom=15.63），press 层 sell_number_button_down 同 cap。
+[sub_resource type="StyleBoxTexture" id="SB_mo_btn_n"]
+texture = ExtResource("8_selln")
+texture_margin_left = 15.63
+texture_margin_top = 35.74
+texture_margin_right = 27.84
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_mo_btn_p"]
+texture = ExtResource("9_sellp")
+texture_margin_left = 15.63
+texture_margin_top = 35.74
+texture_margin_right = 27.84
+texture_margin_bottom = 15.63
+
+; midas use 按钮（批 2 Task 6）：源 midas.lua:881-893 Scale9Sprite tavern_button_1/2
+; (166x63) cap CCRectMake(10,10,108,29) 纹理像素直译（批 1 公式：
+; left=10 top=63-10-29=24 right=166-10-108=48 bottom=10）。
+[sub_resource type="StyleBoxTexture" id="SB_midas_use_n"]
+texture = ExtResource("16_miduse1")
+texture_margin_left = 10.0
+texture_margin_top = 24.0
+texture_margin_right = 48.0
+texture_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxTexture" id="SB_midas_use_p"]
+texture = ExtResource("17_miduse2")
+texture_margin_left = 10.0
+texture_margin_top = 24.0
+texture_margin_right = 48.0
+texture_margin_bottom = 10.0
+
+; midas multi_use 按钮（源 :936-948 tavern_button_normal_1/2 同 cap(10,10,108,29)）。
+[sub_resource type="StyleBoxTexture" id="SB_midas_multi_n"]
+texture = ExtResource("14_dlbtn1")
+texture_margin_left = 10.0
+texture_margin_top = 24.0
+texture_margin_right = 48.0
+texture_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxTexture" id="SB_midas_multi_p"]
+texture = ExtResource("15_dlbtn2")
+texture_margin_left = 10.0
+texture_margin_top = 24.0
+texture_margin_right = 48.0
+texture_margin_bottom = 10.0
+
+; stage_reset_confirm 确认按钮：源 dialog.lua confirmDialog :276-317 左右按钮 Scale9
+; herodetail-upgrade/mask cap CCRectMake(20,20,40,29)（97x67）。2026-09-10 二轮换烘焙
+; 成品图 confirm_btn_120x49（margin=0 防 Button min 撑高 49→66）；四处确认框弹窗
+; （stage_reset/crusade_reset/shop_refresh+summon 共用 content）统一走本样式。
+[sub_resource type="StyleBoxTexture" id="SB_dialog_confirm_n"]
+texture = ExtResource("21_bkconfn")
+
+[sub_resource type="StyleBoxTexture" id="SB_dialog_confirm_p"]
+texture = ExtResource("22_bkconfp")
+
+; stage_detail 扫荡按钮（批 3 Task 6）：源 stagedetail.lua createRepeatBattle:375-448
+; some/once Scale9Sprite tavern_button_normal(166x63) cap CCRectMake(20,15,90,15)
+; 纹理像素直译（left=20 top=63-15-15=33 right=166-20-90=56 bottom=15），press 层同 cap。
+; 取代 2026-07-30 panel._apply_sweep_btn_style 运行时 stylebox override（范式禁新增）。
+[sub_resource type="StyleBoxTexture" id="SB_sweep_n"]
+texture = ExtResource("14_dlbtn1")
+texture_margin_left = 20.0
+texture_margin_top = 33.0
+texture_margin_right = 56.0
+texture_margin_bottom = 15.0
+
+[sub_resource type="StyleBoxTexture" id="SB_sweep_p"]
+texture = ExtResource("15_dlbtn2")
+texture_margin_left = 20.0
+texture_margin_top = 33.0
+texture_margin_right = 56.0
+texture_margin_bottom = 15.0
+
+; crusade 底栏功能按钮（批 3 Task 7，2026-08-16）：源 crusadeconfig.lua:967-1017
+; showrule/resetbattle/shop Scale9Button tavern_button_normal(166x63)
+; cap CCRectMake(14,20,60,23) 纹理像素直译（批 1 公式：left=14 top=63-20-23=20
+; right=166-14-60=92 bottom=20），press 层同 cap。取代 panel._apply_reset_button_style
+; /_create_rule_button 运行时 stylebox override（范式禁新增）。文字走按钮子 Label
+; （theme_override，范式同 ResetLabel——stylebox 不对称 margin 致 Button.text 偏移）。
+[sub_resource type="StyleBoxTexture" id="SB_crusade_action_n"]
+texture = ExtResource("14_dlbtn1")
+texture_margin_left = 14.0
+texture_margin_top = 20.0
+texture_margin_right = 92.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_crusade_action_p"]
+texture = ExtResource("15_dlbtn2")
+texture_margin_left = 14.0
+texture_margin_top = 20.0
+texture_margin_right = 92.0
+texture_margin_bottom = 20.0
+
+; excavate_search 底部导航钮（excavatesearch.lua histroy/explain：sell_number_button
+; cap(15.63,15.63,18.75,18.75)@63x67 → L16/B16/R29/T33，批3 像素直译口径）
+[sub_resource type="StyleBoxTexture" id="SB_exc_nav_n"]
+texture = ExtResource("8_selln")
+texture_margin_left = 16.0
+texture_margin_top = 33.0
+texture_margin_right = 29.0
+texture_margin_bottom = 16.0
+
+[sub_resource type="StyleBoxTexture" id="SB_exc_nav_p"]
+texture = ExtResource("9_sellp")
+texture_margin_left = 16.0
+texture_margin_top = 33.0
+texture_margin_right = 29.0
+texture_margin_bottom = 16.0
+
+; excavate_search 搜索钮（excavatesearch.lua search_button：tavern_button_1/2
+; cap(21.88,19.53,73.44,20.31)@166x63 → L22/B20/R71/T23）
+[sub_resource type="StyleBoxTexture" id="SB_exc_search_n"]
+texture = ExtResource("16_miduse1")
+texture_margin_left = 22.0
+texture_margin_top = 23.0
+texture_margin_right = 71.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_exc_search_p"]
+texture = ExtResource("17_miduse2")
+texture_margin_left = 22.0
+texture_margin_top = 23.0
+texture_margin_right = 71.0
+texture_margin_bottom = 20.0
+
+; excavate_team 换队钮（uieditor/excavateteam.lua change_team_button：task_button
+; cap(15.63,15.63,19.53,15.63)@96x63 → L15.63/B15.63/R60.84/T31.74。与 hero_split
+; SB_hs_task 系同图不同 cap（w=39.06），故独立 StyleBox；press 层同 cap）
+[sub_resource type="StyleBoxTexture" id="SB_exc_team_task_n"]
+texture = ExtResource("10_taskn")
+texture_margin_left = 15.63
+texture_margin_top = 31.74
+texture_margin_right = 60.84
+texture_margin_bottom = 15.63
+
+[sub_resource type="StyleBoxTexture" id="SB_exc_team_task_p"]
+texture = ExtResource("11_taskp")
+texture_margin_left = 15.63
+texture_margin_top = 31.74
+texture_margin_right = 60.84
+texture_margin_bottom = 15.63
+
+; ── equipboard 卖出/右按钮（批 4 Task 6，2026-08-17）── 源 ofpackage.lua:108-135
+; left/right_button Scale9Sprite package_button(335x67 PIL 实测) cap CCRectMake(10,10,236,29)
+; 纹理像素直译（批 1 公式：left=10 top=67-10-29=28 right=335-10-236=89 bottom=10），
+; press 层 package_button_down 同尺寸同 cap。
+; content_margin 全 0：cap 严重不对称（top28/right89）时默认 content=texture_margin 会把
+; 按钮文字挤进偏移的九宫格内容区（不居中+下推出框），显式归零让文字全 rect 几何中心居中
+; （源 label mediate 居中 Scale9Sprite 等价；2026-07-20 equipboard 问题 5 实证）。
+[sub_resource type="StyleBoxTexture" id="SB_eb_btn_n"]
+texture = ExtResource("18_pkgn")
+texture_margin_left = 10.0
+texture_margin_top = 28.0
+texture_margin_right = 89.0
+texture_margin_bottom = 10.0
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxTexture" id="SB_eb_btn_p"]
+texture = ExtResource("19_pkgp")
+texture_margin_left = 10.0
+texture_margin_top = 28.0
+texture_margin_right = 89.0
+texture_margin_bottom = 10.0
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+
+; ladder 换一批按钮（批4 Task 9）：源 pvp.lua:2211-2236 changeEnemy Scale9Sprite
+; tavern_button_1/2(166x63) cap CCRectMake(50,20,66,23) 纹理像素直译（批 1 公式：
+; left=50 top=63-20-23=20 right=166-50-66=50 bottom=20），无 scaleSize → 按钮 rect
+; 129.5x49.2（166/CS x 63/CS）。
+[sub_resource type="StyleBoxTexture" id="SB_ladder_change_n"]
+texture = ExtResource("16_miduse1")
+texture_margin_left = 50.0
+texture_margin_top = 20.0
+texture_margin_right = 50.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_ladder_change_p"]
+texture = ExtResource("17_miduse2")
+texture_margin_left = 50.0
+texture_margin_top = 20.0
+texture_margin_right = 50.0
+texture_margin_bottom = 20.0
+
+; ladder 购买/阵容调整按钮（源 :2937-2963 adjustHero + pvpShop :2030-2055）
+; tavern_button_normal_1/2 同 cap(50,20,66,23)，图与 change 系不同故独立 SB。
+[sub_resource type="StyleBoxTexture" id="SB_ladder_normal50_n"]
+texture = ExtResource("14_dlbtn1")
+texture_margin_left = 50.0
+texture_margin_top = 20.0
+texture_margin_right = 50.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_ladder_normal50_p"]
+texture = ExtResource("15_dlbtn2")
+texture_margin_left = 50.0
+texture_margin_top = 20.0
+texture_margin_right = 50.0
+texture_margin_bottom = 20.0
+
+[resource]
+AmountLabel/base_type = &"Label"
+AmountLabel/colors/font_color = Color(0.608, 0.161, 0.055, 1)
+AmountLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+AmountLabel/constants/outline_size = 2
+AmountLabel/font_sizes/font_size = 18
+BodyLabel/base_type = &"Label"
+BodyLabel/colors/font_color = Color(1, 1, 1, 1)
+BodyLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+BodyLabel/constants/outline_size = 2
+BodyLabelThin/base_type = &"Label"
+BodyLabelThin/colors/font_color = Color(1, 1, 1, 1)
+BodyLabelThin/colors/font_outline_color = Color(0, 0, 0, 1)
+BodyLabelThin/constants/outline_size = 1
+BtnLabel/base_type = &"Label"
+BtnLabel/colors/font_color = Color(0.918, 0.882, 0.804, 1)
+BtnLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+BtnLabel/constants/outline_size = 2
+Button/styles/normal = SubResource("StyleBoxEmpty_0oxu6")
+; ── 滚动条全局隐藏（2026-09-06）── 源手游 draglist 触屏拖拽无可见滚动条；此前仅
+; avatar/task 贴图化 + hero_detail/crusade 局部隐藏，其余 20+ 列表露 Godot 默认灰条
+; 碍视觉。全类型（V/H）ScrollBar 全 stylebox 置空：StyleBoxEmpty 无 min size →
+; 厚度 0 不占视口空间，滚轮/拖拽滚动不受影响；节点级 override 优先于本 theme，
+; 需显示滚动条的面板可自行 add_theme_stylebox_override。
+HScrollBar/styles/scroll = SubResource("StyleBoxEmpty_0oxu6")
+HScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_0oxu6")
+HScrollBar/styles/grabber = SubResource("StyleBoxEmpty_0oxu6")
+HScrollBar/styles/grabber_highlight = SubResource("StyleBoxEmpty_0oxu6")
+HScrollBar/styles/grabber_pressed = SubResource("StyleBoxEmpty_0oxu6")
+VScrollBar/styles/scroll = SubResource("StyleBoxEmpty_0oxu6")
+VScrollBar/styles/scroll_focus = SubResource("StyleBoxEmpty_0oxu6")
+VScrollBar/styles/grabber = SubResource("StyleBoxEmpty_0oxu6")
+VScrollBar/styles/grabber_highlight = SubResource("StyleBoxEmpty_0oxu6")
+VScrollBar/styles/grabber_pressed = SubResource("StyleBoxEmpty_0oxu6")
+; ── stage_select 章节标题（批 3 Task 5，2026-08-16）── 源 stageselect.lua:861-883
+; createTitleText：fontinfo ui_normal_button（fontconfigs.lua：size17 白 + shadow
+; ccc3(63,5,0) offset(0,2)，stroke 源注释未启用）+ color ccc3(250,205,16)。size=17：源 stageselect.lua createTitleText 仅 fontinfo=ui_normal_button（layout 无 size 能力），fontconfigs.lua:24 size=17（批3 批末勘误，原 18 系错套 mode toggle 值）。
+; 旧实现黑描边 2 是迁移发明（源 stroke 被注释），variation 化时删。
+StageTitleLabel/base_type = &"Label"
+StageTitleLabel/colors/font_color = Color(0.980392, 0.803922, 0.062745, 1)
+StageTitleLabel/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+StageTitleLabel/constants/shadow_offset_x = 0
+StageTitleLabel/constants/shadow_offset_y = 2
+StageTitleLabel/font_sizes/font_size = 17
+; ── daily_login 月签到（批 2 Task 3，2026-08-16）── 源 dailylogin.lua：
+; title :813-826 size18 ccc3(231,206,19)（源无 stroke，删迁移发明的黑描边）；
+; explain_label :858-873 size18 ccc3(225,209,186)；subhead :653-720 size16
+; pre ccc3(238,204,119) / num 白（WhiteLabel16 通用）/ suf ccc3(255,204,91)；
+; amount :356-375 size24 白 stroke ccc3(95,64,43) size2；vip num size14 ccc3(231,206,19) 黑描边 1。
+DailyLoginTitleLabel/base_type = &"Label"
+DailyLoginTitleLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+DailyLoginTitleLabel/font_sizes/font_size = 18
+DailyLoginExplainLabel/base_type = &"Label"
+DailyLoginExplainLabel/colors/font_color = Color(0.882353, 0.819608, 0.729412, 1)
+DailyLoginExplainLabel/font_sizes/font_size = 18
+DailyLoginSubheadPreLabel/base_type = &"Label"
+DailyLoginSubheadPreLabel/colors/font_color = Color(0.933333, 0.8, 0.466667, 1)
+DailyLoginSubheadPreLabel/font_sizes/font_size = 16
+DailyLoginSubheadSufLabel/base_type = &"Label"
+DailyLoginSubheadSufLabel/colors/font_color = Color(1, 0.8, 0.356863, 1)
+DailyLoginSubheadSufLabel/font_sizes/font_size = 16
+DailyLoginAmountLabel/base_type = &"Label"
+DailyLoginAmountLabel/colors/font_color = Color(1, 1, 1, 1)
+DailyLoginAmountLabel/colors/font_outline_color = Color(0.372549, 0.25098, 0.168627, 1)
+DailyLoginAmountLabel/constants/outline_size = 2
+DailyLoginAmountLabel/font_sizes/font_size = 24
+; 奖励说明按钮三态（源 :827-857 explain + explain_press down 层 → SB_dl_explain_n/p）
+DailyLoginExplainBtn/base_type = &"Button"
+DailyLoginExplainBtn/styles/normal = SubResource("SB_dl_explain_n")
+DailyLoginExplainBtn/styles/hover = SubResource("SB_dl_explain_n")
+DailyLoginExplainBtn/styles/pressed = SubResource("SB_dl_explain_p")
+DailyLoginExplainBtn/styles/disabled = SubResource("SB_dl_explain_n")
+DailyLoginExplainBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+DialogLabel/base_type = &"Label"
+DialogLabel/colors/font_color = Color(1, 1, 1, 1)
+DialogLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+DialogLabel/constants/outline_size = 3
+; dungeon_degree_popup（批 3 Task 2，2026-08-16）：vit_number 源 dungeon_map.lua:376-388
+; createttf size=18 + ccc3(233,214,181)；Title 复用 ExerciseTitleLabel（源 fontinfo
+; ui_normal_button 同 exercise :766-776 定稿，17 号金影）。
+DungeonVitNumberLabel/base_type = &"Label"
+DungeonVitNumberLabel/colors/font_color = Color(0.913725, 0.839216, 0.709804, 1)
+DungeonVitNumberLabel/font_sizes/font_size = 18
+; exercise_map 旧版地图（2026-09-19）：cavern 入口/子窗按钮名源 exercise.lua:1457-1492
+; CCLabelTTF 20 号 ccc3(200,150,255) 紫无影；子窗标题「时光之穴」20 号 ccc3(200,150,50)。
+CavernPurpleLabel/base_type = &"Label"
+CavernPurpleLabel/colors/font_color = Color(0.784314, 0.588235, 1, 1)
+CavernPurpleLabel/font_sizes/font_size = 20
+CavernTitleLabel/base_type = &"Label"
+CavernTitleLabel/colors/font_color = Color(0.784314, 0.588235, 0.196078, 1)
+CavernTitleLabel/font_sizes/font_size = 20
+; eatexp 吃经验弹窗（批 1 Task 3，2026-08-15）：title 源 eatexplist.lua:57-72 size24 ccc3(250,205,16)
+; + fontinfo ui_normal_button（17 号白+阴影(63,5,0)偏移(0,2)，size 被 24 覆盖）。
+EatexpTitleLabel/base_type = &"Label"
+EatexpTitleLabel/colors/font_color = Color(0.980392, 0.803922, 0.062745, 1)
+EatexpTitleLabel/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+EatexpTitleLabel/constants/shadow_offset_x = 0
+EatexpTitleLabel/constants/shadow_offset_y = 2
+EatexpTitleLabel/font_sizes/font_size = 24
+; 源 :176-185 prompt size20 无色配置（白）
+EatexpPromptLabel/base_type = &"Label"
+EatexpPromptLabel/font_sizes/font_size = 20
+; 源 :225-238 行内 level size16 ccc3(68,51,51)
+EatexpHeroLevelLabel/base_type = &"Label"
+EatexpHeroLevelLabel/colors/font_color = Color(0.266667, 0.2, 0.2, 1)
+EatexpHeroLevelLabel/font_sizes/font_size = 16
+; 源 readhero.lua:939-985 createttf size20 白 + 黑阴影(0,2)（rank 星后缀色 fill 动态 override）
+EatexpHeroNameLabel/base_type = &"Label"
+EatexpHeroNameLabel/colors/font_color = Color(1, 1, 1, 1)
+EatexpHeroNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EatexpHeroNameLabel/constants/shadow_offset_x = 0
+EatexpHeroNameLabel/constants/shadow_offset_y = 2
+EatexpHeroNameLabel/font_sizes/font_size = 20
+; 源 announce.lua getNewHero name :282-292 ui_herotitle_stroke size30 白字黑描边（2026-09-09 召唤链）
+GetNewHeroNameLabel/base_type = &"Label"
+GetNewHeroNameLabel/colors/font_color = Color(1, 1, 1, 1)
+GetNewHeroNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+GetNewHeroNameLabel/constants/shadow_offset_x = 0
+GetNewHeroNameLabel/constants/shadow_offset_y = 2
+GetNewHeroNameLabel/font_sizes/font_size = 30
+; 源 :424-436 满级 shade 标签 size22 ccc3(255,148,62)
+EatexpShadeLabel/base_type = &"Label"
+EatexpShadeLabel/colors/font_color = Color(1, 0.580392, 0.243137, 1)
+EatexpShadeLabel/font_sizes/font_size = 22
+GhostButton/base_type = &"Button"
+GhostButton/styles/normal = SubResource("StyleBoxEmpty_0oxu6")
+GhostButton/styles/hover = SubResource("StyleBoxEmpty_0oxu6")
+GhostButton/styles/pressed = SubResource("StyleBoxEmpty_0oxu6")
+GhostButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+GridContainer/constants/h_separation = 8
+GridContainer/constants/v_separation = 8
+HBoxContainer/constants/separation = 8
+Label/colors/font_color = Color(1, 1, 1, 1)
+Label/font_sizes/font_size = 16
+MidasConfirmLabel/base_type = &"Label"
+MidasConfirmLabel/font_sizes/font_size = 18
+MidasHistoryLabel/base_type = &"Label"
+MidasHistoryLabel/font_sizes/font_size = 20
+ShadowedLabel/base_type = &"Label"
+ShadowedLabel/colors/font_color = Color(1, 1, 1, 1)
+ShadowedLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+ShadowedLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ShadowedLabel/constants/outline_size = 2
+ShadowedLabel/constants/shadow_offset_x = 0
+ShadowedLabel/constants/shadow_offset_y = 2
+TaskDetailLabel/base_type = &"Label"
+TaskDetailLabel/colors/font_color = Color(0, 0, 0, 1)
+TaskDetailLabel/font_sizes/font_size = 16
+TaskEmptyLabel/base_type = &"Label"
+TaskEmptyLabel/colors/font_color = Color(0.93333334, 0.8, 0.46666667, 1)
+TaskEmptyLabel/font_sizes/font_size = 20
+TaskFastBtnLabel/base_type = &"Label"
+TaskFastBtnLabel/colors/font_color = Color(0.60784316, 0.13333334, 0.05490196, 1)
+TaskFastBtnLabel/font_sizes/font_size = 18
+TaskNameLabel/base_type = &"Label"
+TaskNameLabel/colors/font_color = Color(0.25882354, 0.1764706, 0.10980392, 1)
+TaskNameLabel/font_sizes/font_size = 20
+TaskProgressDoneLabel/base_type = &"Label"
+TaskProgressDoneLabel/colors/font_color = Color(0.27450982, 0.44705883, 0, 1)
+TaskProgressDoneLabel/font_sizes/font_size = 18
+TaskProgressTodoLabel/base_type = &"Label"
+TaskProgressTodoLabel/colors/font_color = Color(0.5411765, 0.21960784, 0.003921569, 1)
+TaskProgressTodoLabel/font_sizes/font_size = 18
+TaskRewardAmtLabel/base_type = &"Label"
+TaskRewardAmtLabel/colors/font_color = Color(0.60784316, 0.16078432, 0.05490196, 1)
+TaskRewardAmtLabel/font_sizes/font_size = 20
+TaskRewardTitleLabel/base_type = &"Label"
+TaskRewardTitleLabel/colors/font_color = Color(0.60784316, 0.13333334, 0.05490196, 1)
+TaskRewardTitleLabel/font_sizes/font_size = 20
+; TaskSectionLabel（task 段标题，批4 Task 7）随 2026-09-03 三轮拆回两独立弹窗移除
+;（源单弹窗无分节标题，标题按模式由 %Title 承担）。
+TitleLabel/base_type = &"Label"
+TitleLabel/colors/font_color = Color(0.906, 0.808, 0.075, 1)
+TitleLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+TitleLabel/constants/outline_size = 3
+TitleLabel/font_sizes/font_size = 20
+VBoxContainer/constants/separation = 8
+; ── 轮 3 新增 10 变体（完整签名，spec v2.2 §1.1）──
+; ── 试点 variation 组（shop 标签 + hero_detail 按钮，2026-08-14）──
+HeroDetailTab/base_type = &"Button"
+HeroDetailTab/styles/normal = SubResource("SB_detail_n")
+HeroDetailTab/styles/hover = SubResource("SB_detail_n")
+HeroDetailTab/styles/pressed = SubResource("SB_detail_p")
+HeroDetailTabActive/base_type = &"Button"
+HeroDetailTabActive/styles/normal = SubResource("SB_detail_a")
+HeroDetailTabActive/styles/hover = SubResource("SB_detail_a")
+HeroDetailTabActive/styles/pressed = SubResource("SB_detail_p")
+; 进阶/觉醒按钮（100x42 烘焙图，2026-09-11 自 HeroDetailTab 拆出；字色/字号同
+; HeroDetailTabLabel 系——tscn/fx 子节点 Label 填文字）
+HeroDetailRankBtn/base_type = &"Button"
+HeroDetailRankBtn/styles/normal = SubResource("SB_detail_rank_n")
+HeroDetailRankBtn/styles/hover = SubResource("SB_detail_rank_n")
+HeroDetailRankBtn/styles/pressed = SubResource("SB_detail_rank_p")
+HeroDetailRankBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+HeroDetailTabLabel/base_type = &"Label"
+HeroDetailTabLabel/colors/font_color = Color(0, 0, 0, 1)
+HeroDetailTabLabel/colors/font_outline_color = Color(1, 1, 1, 1)
+HeroDetailTabLabel/constants/outline_size = 2
+ShopItemNameLabel/base_type = &"Label"
+ShopItemNameLabel/colors/font_color = Color(0.270588, 0.230882, 0.219608, 1)
+ShopItemNameLabel/font_sizes/font_size = 20
+ShopItemPriceLabel/base_type = &"Label"
+ShopItemPriceLabel/colors/font_color = Color(1, 1, 1, 1)
+ShopItemPriceLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+ShopItemPriceLabel/constants/outline_size = 2
+ShopItemPriceLabel/font_sizes/font_size = 20
+ShopTalkLabel/base_type = &"Label"
+ShopTalkLabel/font_sizes/font_size = 20
+ShopTimeLabel/base_type = &"Label"
+ShopTimeLabel/colors/font_color = Color(0.858824, 0.780392, 0.658824, 1)
+ShopTimeLabel/font_sizes/font_size = 16
+ShopTitleLabel/base_type = &"Label"
+ShopTitleLabel/font_sizes/font_size = 24
+; 抽卡卡池标题（2026-09-15 英文美术贴图退役改 Label）：24 号白字黑描边 2
+; （源 tavern_title_1/3/4.png 美术字视觉档位；描边保证深色横幅底图上可读）。
+TavernBoardTitleLabel/base_type = &"Label"
+TavernBoardTitleLabel/colors/font_color = Color(1, 1, 1, 1)
+TavernBoardTitleLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+TavernBoardTitleLabel/constants/outline_size = 2
+TavernBoardTitleLabel/font_sizes/font_size = 24
+HandbookEntryLabel/base_type = &"Label"
+HandbookEntryLabel/colors/font_color = Color(0.698039, 0.588235, 0.572549, 1)
+; 批4 Task 5：源 doSelectTag :94 未选中 setShadow(ccc3(0,0,0), ccp(0,2))（两 variation 方案之未选中态）
+HandbookEntryLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+HandbookEntryLabel/constants/shadow_offset_x = 0
+HandbookEntryLabel/constants/shadow_offset_y = 2
+HandbookEntryLabel/font_sizes/font_size = 16
+; 批4 Task 5：tag 选中态（源 doSelectTag :100-101 disableShadow + ccc3(255,255,255)，字号 16 不变）
+HandbookEntryLabelSelected/base_type = &"Label"
+HandbookEntryLabelSelected/colors/font_color = Color(1, 1, 1, 1)
+HandbookEntryLabelSelected/font_sizes/font_size = 16
+; 批4 Task 5：装备名 label（源 createIcon :443-444 仅颜色+字号 ccc3(182,65,21) size=18，无 stroke 调用；黑描边 2px 系迁移历史实现保留）
+HandbookEquipNameLabel/base_type = &"Label"
+HandbookEquipNameLabel/colors/font_color = Color(0.713726, 0.254902, 0.082353, 1)
+HandbookEquipNameLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+HandbookEquipNameLabel/constants/outline_size = 2
+HandbookEquipNameLabel/font_sizes/font_size = 18
+; 批4 Task 5：页码 label（源 setPageTitle :511 pageNumber ccc3(174,133,76) 18 号，原 BlackLabel18 黑色不符）
+HandbookPageLabel/base_type = &"Label"
+HandbookPageLabel/colors/font_color = Color(0.682353, 0.521569, 0.298039, 1)
+HandbookPageLabel/font_sizes/font_size = 18
+HeroTabLabel/base_type = &"Label"
+HeroTabLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroTabLabel/colors/font_shadow_color = Color(0.247, 0.02, 0, 1)
+HeroTabLabel/constants/shadow_offset_x = 0
+HeroTabLabel/constants/shadow_offset_y = 2
+HeroTabLabel/font_sizes/font_size = 20
+BlackLabel18/base_type = &"Label"
+BlackLabel18/colors/font_color = Color(0, 0, 0, 1)
+BlackLabel18/font_sizes/font_size = 18
+ConfigTitleLabel/base_type = &"Label"
+ConfigTitleLabel/colors/font_color = Color(0.922, 0.875, 0.812, 1)
+ConfigTitleLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ConfigTitleLabel/constants/shadow_offset_x = 0
+ConfigTitleLabel/constants/shadow_offset_y = 2
+ConfigTitleLabel/font_sizes/font_size = 20
+; ── stage_detail 区块标题（2026-07-17 立，批 3 Task 6 改名）── 源 stagedetail.lua
+; power_title:1683-1696 / count_title:1726-1740 / enemy_title:1830-1844 /
+; award_title:1845-1859：size22 ccc3(241,193,113)=toccc3(15843697)。
+; 原名 StageTitleLabel 与批 3 Task 5 stage_select 章节标题撞名（tres 同键后定义覆盖
+; 前定义，Task 5 size18 金色被本段 size22 覆盖），改名 StageSectionLabel 让位。
+StageSectionLabel/base_type = &"Label"
+StageSectionLabel/colors/font_color = Color(0.945, 0.757, 0.443, 1)
+StageSectionLabel/font_sizes/font_size = 22
+; stage_detail 扫荡按钮三态（源 :375-448 some/once + *_press down 层 → SB_sweep_n/p）
+StageSweepBtn/base_type = &"Button"
+StageSweepBtn/styles/normal = SubResource("SB_sweep_n")
+StageSweepBtn/styles/hover = SubResource("SB_sweep_n")
+StageSweepBtn/styles/pressed = SubResource("SB_sweep_p")
+StageSweepBtn/styles/disabled = SubResource("SB_sweep_n")
+StageSweepBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+WarnLabel/base_type = &"Label"
+WarnLabel/colors/font_color = Color(0.572549, 0, 0.0156863, 1)
+WarnLabel/font_sizes/font_size = 18
+InfoLineLabel/base_type = &"Label"
+InfoLineLabel/colors/font_color = Color(0.858824, 0.768627, 0.494118, 1)
+InfoLineLabel/font_sizes/font_size = 19
+; ── configure 两件套（批 4 Task 10，2026-08-18）── 源 popwindow/configure.lua。
+; Scale9 动作按钮（createWindow change_head:1149-1199/change_name:1213-1263/
+; save_manager:1264-1314 + createSWButton setup_button:742-792）同为
+; sell_number_button(63x67) cap CCRectMake(15,22,15,25)——与批 2 Task 2 package
+; 图鉴按钮同图同 cap → 复用 SB_pkg_hb_n/p（focus 空按钮集）。
+ConfigureActionBtn/base_type = &"Button"
+ConfigureActionBtn/styles/normal = SubResource("SB_pkg_hb_n")
+ConfigureActionBtn/styles/hover = SubResource("SB_pkg_hb_n")
+ConfigureActionBtn/styles/pressed = SubResource("SB_pkg_hb_p")
+ConfigureActionBtn/styles/disabled = SubResource("SB_pkg_hb_n")
+ConfigureActionBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 玩家名（createName:87-118 size20 无 config.color 默认白 + 黑影(0,2)）
+ConfigureNameLabel/base_type = &"Label"
+ConfigureNameLabel/colors/font_color = Color(1, 1, 1, 1)
+ConfigureNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ConfigureNameLabel/constants/shadow_offset_x = 0
+ConfigureNameLabel/constants/shadow_offset_y = 2
+ConfigureNameLabel/font_sizes/font_size = 20
+; 语言 label（createSWButton:955-973 size20 ccc3(220,176,103) + 黑影(0,2)）
+ConfigureLangLabel/base_type = &"Label"
+ConfigureLangLabel/colors/font_color = Color(0.862745, 0.690196, 0.403922, 1)
+ConfigureLangLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ConfigureLangLabel/constants/shadow_offset_x = 0
+ConfigureLangLabel/constants/shadow_offset_y = 2
+ConfigureLangLabel/font_sizes/font_size = 20
+StageNumberLabel/base_type = &"Label"
+StageNumberLabel/colors/font_color = Color(0.961, 0.882, 0.745, 1)
+StageNumberLabel/font_sizes/font_size = 22
+DetailBaseLabel/base_type = &"Label"
+DetailBaseLabel/colors/font_color = Color(1, 0.918, 0.776, 1)
+DetailBaseLabel/font_sizes/font_size = 16
+AccentGoldRowLabel/base_type = &"Label"
+AccentGoldRowLabel/colors/font_color = Color(0.945, 0.757, 0.443, 1)
+AccentGoldRowLabel/font_sizes/font_size = 16
+; ── 轮 4 新增 5 变体（完整签名，spec §1.1）──
+WhiteLabel16/base_type = &"Label"
+WhiteLabel16/colors/font_color = Color(1, 1, 1, 1)
+WhiteLabel16/font_sizes/font_size = 16
+WhiteLabel18/base_type = &"Label"
+WhiteLabel18/colors/font_color = Color(1, 1, 1, 1)
+WhiteLabel18/constants/outline_size = 2
+WhiteLabel18/font_sizes/font_size = 18
+; WhiteLabel20 已删（批 2 Task 2）：package tab label 迁往 PackageTabLabel 后无使用者（孤儿 variation 清理）
+BattlePrepareTabLabel/base_type = &"Label"
+BattlePrepareTabLabel/colors/font_color = Color(0.769, 0.733, 0.667, 1)
+BattlePrepareTabLabel/colors/font_shadow_color = Color(0.165, 0.122, 0.086, 1)
+BattlePrepareTabLabel/constants/shadow_offset_x = 0
+BattlePrepareTabLabel/constants/shadow_offset_y = 2
+BattlePrepareTabLabel/font_sizes/font_size = 20
+StoneAmountLabel/base_type = &"Label"
+StoneAmountLabel/colors/font_color = Color(0.663, 0.357, 0.110, 1)
+StoneAmountLabel/font_sizes/font_size = 16
+; ── exercise 两件套（批 1 Task 1，2026-08-15）──
+; 标题照源 exercise.lua:764-776 title：fontinfo ui_normal_button（17 号 + 阴影(63,5,0) 偏移(0,2)）
+; + config color ccc3(231,206,19)。
+ExerciseTitleLabel/base_type = &"Label"
+ExerciseTitleLabel/colors/font_color = Color(0.906, 0.808, 0.075, 1)
+ExerciseTitleLabel/colors/font_shadow_color = Color(0.247, 0.02, 0, 1)
+ExerciseTitleLabel/constants/shadow_offset_x = 0
+ExerciseTitleLabel/constants/shadow_offset_y = 2
+ExerciseTitleLabel/font_sizes/font_size = 17
+; ── stone_detail 两件套（批 1 Task 2，2026-08-15）──
+; 英雄名（源 stonedetail.lua:518-531 size18 ccc3(184,6,6)）
+StoneDetailNameLabel/base_type = &"Label"
+StoneDetailNameLabel/colors/font_color = Color(0.721569, 0.023529, 0.023529, 1)
+StoneDetailNameLabel/font_sizes/font_size = 18
+; 获得途径标题（源 :157-174 size20 ccc3(155,34,14)）
+StoneDetailWayTitleLabel/base_type = &"Label"
+StoneDetailWayTitleLabel/colors/font_color = Color(0.607843, 0.133333, 0.054902, 1)
+StoneDetailWayTitleLabel/font_sizes/font_size = 20
+; 空掉落提示（源 :452-478 size18 ccc3(109,62,0)）
+StoneDetailEmptyLabel/base_type = &"Label"
+StoneDetailEmptyLabel/colors/font_color = Color(0.427451, 0.243137, 0, 1)
+StoneDetailEmptyLabel/font_sizes/font_size = 18
+; 获取途径行 title/name（源 :309-360 size18 ccc3(182,65,21)）
+StoneDetailBoardLabel/base_type = &"Label"
+StoneDetailBoardLabel/colors/font_color = Color(0.713725, 0.254902, 0.082353, 1)
+StoneDetailBoardLabel/font_sizes/font_size = 18
+; 获取途径行精英标（源 :325-344 size18 ccc3(255,0,0)）
+StoneDetailEliteLabel/base_type = &"Label"
+StoneDetailEliteLabel/colors/font_color = Color(1, 0, 0, 1)
+StoneDetailEliteLabel/font_sizes/font_size = 18
+; 返回按钮（源 :556-600 ok Scale9 herodetail-detail-n cap(15,15,138,19) scaleSize 200x49
+; + ok_label fontinfo ui_normal_button 17 号白字 + 阴影(63,5,0) 偏移(0,2)）：
+; 2026-09-11 自 SB_detail_n/p 拆出 200x49 独立烘焙档 SB_detail_stone_ok_n/p。
+StoneDetailOkButton/base_type = &"Button"
+StoneDetailOkButton/colors/font_color = Color(1, 1, 1, 1)
+StoneDetailOkButton/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+StoneDetailOkButton/constants/shadow_offset_x = 0
+StoneDetailOkButton/constants/shadow_offset_y = 2
+StoneDetailOkButton/font_sizes/font_size = 17
+StoneDetailOkButton/styles/normal = SubResource("SB_detail_stone_ok_n")
+StoneDetailOkButton/styles/hover = SubResource("SB_detail_stone_ok_n")
+StoneDetailOkButton/styles/pressed = SubResource("SB_detail_stone_ok_p")
+StoneDetailOkButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── equip_strengthen 两件套（批 1 Task 5，2026-08-15）──
+; 通用 18 号白+黑阴影(0,2)（源 :817-866 no_cost/money/rmb/no_fastcost + :1456-1473 装备名同规格）
+EquipStrenLabel18/base_type = &"Label"
+EquipStrenLabel18/colors/font_color = Color(1, 1, 1, 1)
+EquipStrenLabel18/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenLabel18/constants/shadow_offset_x = 0
+EquipStrenLabel18/constants/shadow_offset_y = 2
+EquipStrenLabel18/font_sizes/font_size = 18
+; 源 :1145-1171 b_lv/n_lv size18 ccc3(146,0,9) 阴影(0,1)
+EquipStrenBarLevelLabel/base_type = &"Label"
+EquipStrenBarLevelLabel/colors/font_color = Color(0.572549, 0, 0.035294, 1)
+EquipStrenBarLevelLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenBarLevelLabel/constants/shadow_offset_x = 0
+EquipStrenBarLevelLabel/constants/shadow_offset_y = 1
+EquipStrenBarLevelLabel/font_sizes/font_size = 18
+; 源 :1203-1217 ehc size16 stroke(0,0,0,2)
+EquipStrenEhcLabel/base_type = &"Label"
+EquipStrenEhcLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipStrenEhcLabel/colors/font_outline_color = Color(0, 0, 0, 1)
+EquipStrenEhcLabel/constants/outline_size = 2
+EquipStrenEhcLabel/font_sizes/font_size = 16
+; 源 :1475-1492 附魔等级 size18 ccc3(255,120,0) 阴影(0,1)
+EquipStrenAttLevelLabel/base_type = &"Label"
+EquipStrenAttLevelLabel/colors/font_color = Color(1, 0.470588, 0, 1)
+EquipStrenAttLevelLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenAttLevelLabel/constants/shadow_offset_x = 0
+EquipStrenAttLevelLabel/constants/shadow_offset_y = 1
+EquipStrenAttLevelLabel/font_sizes/font_size = 18
+; 源 :2126-2145 material_label size22 白
+EquipStrenMaterialLabel/base_type = &"Label"
+EquipStrenMaterialLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipStrenMaterialLabel/font_sizes/font_size = 22
+; 源 :26-32 talk label size18 白（左对齐/autowrap 走节点属性）
+EquipStrenTalkLabel/base_type = &"Label"
+EquipStrenTalkLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipStrenTalkLabel/font_sizes/font_size = 18
+; 源 createAttList:1366-1414 属性四列 size18 + 阴影(0,1)：pre 白 / att (255,0,0) / add (0,255,0) / suf 黑
+EquipStrenAttPreLabel/base_type = &"Label"
+EquipStrenAttPreLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipStrenAttPreLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenAttPreLabel/constants/shadow_offset_x = 0
+EquipStrenAttPreLabel/constants/shadow_offset_y = 1
+EquipStrenAttPreLabel/font_sizes/font_size = 18
+EquipStrenAttValLabel/base_type = &"Label"
+EquipStrenAttValLabel/colors/font_color = Color(1, 0, 0, 1)
+EquipStrenAttValLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenAttValLabel/constants/shadow_offset_x = 0
+EquipStrenAttValLabel/constants/shadow_offset_y = 1
+EquipStrenAttValLabel/font_sizes/font_size = 18
+EquipStrenAttAddLabel/base_type = &"Label"
+EquipStrenAttAddLabel/colors/font_color = Color(0, 1, 0, 1)
+EquipStrenAttAddLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenAttAddLabel/constants/shadow_offset_x = 0
+EquipStrenAttAddLabel/constants/shadow_offset_y = 1
+EquipStrenAttAddLabel/font_sizes/font_size = 18
+EquipStrenAttSufLabel/base_type = &"Label"
+EquipStrenAttSufLabel/colors/font_color = Color(0, 0, 0, 1)
+EquipStrenAttSufLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipStrenAttSufLabel/constants/shadow_offset_x = 0
+EquipStrenAttSufLabel/constants/shadow_offset_y = 1
+EquipStrenAttSufLabel/font_sizes/font_size = 18
+; 强化按钮（源 stren/faststren Scale9 同贴图同 cap；label 走 BtnLabel 子节点 variation）
+EquipStrenButton/base_type = &"Button"
+EquipStrenButton/styles/normal = SubResource("SB_upgrade_n")
+EquipStrenButton/styles/hover = SubResource("SB_upgrade_n")
+EquipStrenButton/styles/pressed = SubResource("SB_upgrade_p")
+EquipStrenButton/styles/disabled = SubResource("SB_upgrade_n")
+EquipStrenButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; equip_strengthen 选英雄按钮（110x45 烘焙图，2026-09-10 二轮自 EquipStrenButton 拆出；
+; 字色/字号同 EquipStrenButton 旧口径——tscn 自带 SelectHeroBtnLabel 子节点填文字）
+EquipSelectHeroBtn/base_type = &"Button"
+EquipSelectHeroBtn/styles/normal = SubResource("SB_equip_select_n")
+EquipSelectHeroBtn/styles/hover = SubResource("SB_equip_select_n")
+EquipSelectHeroBtn/styles/pressed = SubResource("SB_equip_select_p")
+EquipSelectHeroBtn/styles/disabled = SubResource("SB_equip_select_n")
+EquipSelectHeroBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── fragment_compose 两件套（批 1 Task 6，2026-08-15）──
+; name 标题（源 :273-281 size18 ccc3(184,6,6)）
+FragmentComposeNameLabel/base_type = &"Label"
+FragmentComposeNameLabel/colors/font_color = Color(0.721569, 0.023529, 0.023529, 1)
+FragmentComposeNameLabel/font_sizes/font_size = 18
+; 棕 18（源 :334 "/need" 与 :377 cost_title 同规格 ccc3(50,41,31) 共用）
+FragmentComposeLabel18Brown/base_type = &"Label"
+FragmentComposeLabel18Brown/colors/font_color = Color(0.196078, 0.160784, 0.121569, 1)
+FragmentComposeLabel18Brown/font_sizes/font_size = 18
+; 动态色 18（源 :319 amount / :402 cost 初始色均被运行时刷新覆盖：
+; amount getInformation :241-245 / cost refreshCostColor :108-119 → fill
+; add_theme_color_override 控色，variation 只定号）
+FragmentComposeDynLabel18/base_type = &"Label"
+FragmentComposeDynLabel18/colors/font_color = Color(1, 1, 1, 1)
+FragmentComposeDynLabel18/font_sizes/font_size = 18
+; 通用碎片提示（源 :341-350 size20 ccc3(182,65,21)）
+FragmentComposeUniversalLabel/base_type = &"Label"
+FragmentComposeUniversalLabel/colors/font_color = Color(0.713726, 0.254902, 0.082353, 1)
+FragmentComposeUniversalLabel/font_sizes/font_size = 20
+; 合成按钮（源 :426-465 ok/ok_down Scale9 herodetail-upgrade cap(20,20,20,20)
+; + :455-465 ok_label fontinfo ui_normal_button 17 号白+阴影(63,5,0) 偏移(0,2)，
+; 配置同 StoneDetailOkButton 仅 StyleBox cap 不同）
+FragmentComposeOkButton/base_type = &"Button"
+FragmentComposeOkButton/colors/font_color = Color(1, 1, 1, 1)
+FragmentComposeOkButton/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+FragmentComposeOkButton/constants/shadow_offset_x = 0
+FragmentComposeOkButton/constants/shadow_offset_y = 2
+FragmentComposeOkButton/font_sizes/font_size = 17
+FragmentComposeOkButton/styles/normal = SubResource("SB_fc_ok_n")
+FragmentComposeOkButton/styles/hover = SubResource("SB_fc_ok_n")
+FragmentComposeOkButton/styles/pressed = SubResource("SB_fc_ok_p")
+FragmentComposeOkButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── equip_detail 两件套（批 1 Task 7，2026-08-15）──
+; 三段标题（源 :146/182/223 createttf 24 号 ccc3(250,205,16)）
+EquipDetailSectionTitle/base_type = &"Label"
+EquipDetailSectionTitle/colors/font_color = Color(0.980392, 0.803922, 0.062745, 1)
+EquipDetailSectionTitle/font_sizes/font_size = 24
+; 三段行名（源 :167/207/260 createttf 20 号 ccc3(60,60,60)）
+EquipDetailItemName/base_type = &"Label"
+EquipDetailItemName/colors/font_color = Color(0.235294, 0.235294, 0.235294, 1)
+EquipDetailItemName/font_sizes/font_size = 20
+; How To Get 文本（源 :272-287 size18 ccc3(238,204,119) dimension 240x0 换行
+; + shadow ccc3(0,0,0) offset(0,2)）
+EquipDetailHowLabel/base_type = &"Label"
+EquipDetailHowLabel/colors/font_color = Color(0.933333, 0.8, 0.466667, 1)
+EquipDetailHowLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipDetailHowLabel/constants/shadow_offset_x = 0
+EquipDetailHowLabel/constants/shadow_offset_y = 2
+EquipDetailHowLabel/font_sizes/font_size = 18
+; 拥有数量（源 :308-316 size18 直设绿 ccc3(0,200,0)/红 ccc3(255,0,0) 由 fill
+; font_color override 切换 + setLabelShadow ccc3(0,0,0) offset(0,1)）
+EquipDetailAmountLabel/base_type = &"Label"
+EquipDetailAmountLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipDetailAmountLabel/constants/shadow_offset_x = 0
+EquipDetailAmountLabel/constants/shadow_offset_y = 1
+EquipDetailAmountLabel/font_sizes/font_size = 18
+; 段面板底（源 Scale9 equip_detail_panel_bg → PanelContainer stylebox）
+EquipDetailPanelBox/base_type = &"PanelContainer"
+EquipDetailPanelBox/styles/panel = SubResource("SB_equip_detail_panel")
+; ── hero_split 三件套（批 1 Task 8，2026-08-15）──
+; 详情标题（源 uieditor/herosplit title_label size23 ccc3(255,255,255)）
+HeroSplitTitleLabel/base_type = &"Label"
+HeroSplitTitleLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroSplitTitleLabel/font_sizes/font_size = 23
+; 分区标签（源 title_2"你将获得：" size19 ccc3(57,44,36)）
+HeroSplitSectionLabel/base_type = &"Label"
+HeroSplitSectionLabel/colors/font_color = Color(0.223529, 0.172549, 0.141176, 1)
+HeroSplitSectionLabel/font_sizes/font_size = 19
+; 说明按钮（源 explain_button sell_number cap(15.63,15.63,19.53,19.53)
+; labelConfig ccc3(234,225,205) size22）
+HeroSplitSellButton/base_type = &"Button"
+HeroSplitSellButton/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+HeroSplitSellButton/font_sizes/font_size = 22
+HeroSplitSellButton/styles/normal = SubResource("SB_hs_sell_n")
+HeroSplitSellButton/styles/hover = SubResource("SB_hs_sell_n")
+HeroSplitSellButton/styles/pressed = SubResource("SB_hs_sell_p")
+HeroSplitSellButton/styles/disabled = SubResource("SB_hs_sell_n")
+HeroSplitSellButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 分解按钮（源 split_button task_button cap(15.63,15.63,39.06,15.63)
+; labelConfig ccc3(254,244,16) size22）
+HeroSplitTaskButton/base_type = &"Button"
+HeroSplitTaskButton/colors/font_color = Color(0.996078, 0.956863, 0.062745, 1)
+HeroSplitTaskButton/font_sizes/font_size = 22
+HeroSplitTaskButton/styles/normal = SubResource("SB_hs_task_n")
+HeroSplitTaskButton/styles/hover = SubResource("SB_hs_task_n")
+HeroSplitTaskButton/styles/pressed = SubResource("SB_hs_task_p")
+HeroSplitTaskButton/styles/disabled = SubResource("SB_hs_task_n")
+HeroSplitTaskButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; confirm 标题（源 uieditor/herosplitconfirm title size22 ccc3(255,222,16)）
+HeroSplitConfirmTitleLabel/base_type = &"Label"
+HeroSplitConfirmTitleLabel/colors/font_color = Color(1, 0.870588, 0.062745, 1)
+HeroSplitConfirmTitleLabel/font_sizes/font_size = 22
+; confirm 警示行（源 confirm.lua ChaosNode 两行 size20 ccc3(255,227,133)）
+HeroSplitConfirmWarnLabel/base_type = &"Label"
+HeroSplitConfirmWarnLabel/colors/font_color = Color(1, 0.890196, 0.521569, 1)
+HeroSplitConfirmWarnLabel/font_sizes/font_size = 20
+; confirm 确认按钮（源 ok_button sell_number cap(14.06,15.63,15.63,17.19)
+; labelConfig ccc3(255,255,255) size22）
+HeroSplitConfirmOkButton/base_type = &"Button"
+HeroSplitConfirmOkButton/colors/font_color = Color(1, 1, 1, 1)
+HeroSplitConfirmOkButton/font_sizes/font_size = 22
+HeroSplitConfirmOkButton/styles/normal = SubResource("SB_hs_ok_n")
+HeroSplitConfirmOkButton/styles/hover = SubResource("SB_hs_ok_n")
+HeroSplitConfirmOkButton/styles/pressed = SubResource("SB_hs_ok_p")
+HeroSplitConfirmOkButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; explain 标题（源 uieditor/explainwindow title size24 ccc3(234,171,41)）
+HeroSplitExplainTitleLabel/base_type = &"Label"
+HeroSplitExplainTitleLabel/colors/font_color = Color(0.917647, 0.670588, 0.160784, 1)
+HeroSplitExplainTitleLabel/font_sizes/font_size = 24
+; explain 正文行（源 explain.lua label size16 ccc3(238,204,119)）
+HeroSplitExplainBodyLabel/base_type = &"Label"
+HeroSplitExplainBodyLabel/colors/font_color = Color(0.933333, 0.8, 0.466667, 1)
+HeroSplitExplainBodyLabel/font_sizes/font_size = 16
+; ── hero_package 两件套（批 1 Task 9，2026-08-15）──
+; tab 标签（源 heropackage.lua:535-548 fontinfo ui_normal_button + size=20：
+; 17 号白+阴影(63,5,0)偏移(0,2)，size 被 20 覆盖）
+HeroPackageTabLabel/base_type = &"Label"
+HeroPackageTabLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroPackageTabLabel/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+HeroPackageTabLabel/constants/shadow_offset_x = 0
+HeroPackageTabLabel/constants/shadow_offset_y = 2
+HeroPackageTabLabel/font_sizes/font_size = 20
+; herosplit 按钮文字（源 :723-741 size24 白 + shadow(42,31,22) offset(0,2)）
+HeroPackageSplitLabel/base_type = &"Label"
+HeroPackageSplitLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroPackageSplitLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+HeroPackageSplitLabel/constants/shadow_offset_x = 0
+HeroPackageSplitLabel/constants/shadow_offset_y = 2
+HeroPackageSplitLabel/font_sizes/font_size = 24
+; herosplit 按钮（源 :680-710 Scale9 classbtn cap(40,25,40,25) + press 层 → 三态）
+HeroPackageSplitBtn/base_type = &"Button"
+HeroPackageSplitBtn/styles/normal = SubResource("SB_hp_split_n")
+HeroPackageSplitBtn/styles/hover = SubResource("SB_hp_split_n")
+HeroPackageSplitBtn/styles/pressed = SubResource("SB_hp_split_p")
+HeroPackageSplitBtn/styles/disabled = SubResource("SB_hp_split_n")
+HeroPackageSplitBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; listLine 分隔线标题（源 prepareLoad:407-409 size20 ccc3(231,206,19)）
+HeroPackageListLineLabel/base_type = &"Label"
+HeroPackageListLineLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+HeroPackageListLineLabel/font_sizes/font_size = 20
+; item 名字+星后缀（源 heroitem.lua:32 size20 白+黑阴影(0,2)，createHeroNameByInfo 同规格；
+; 后缀色 fill 动态 override）
+HeroPackageNameLabel/base_type = &"Label"
+HeroPackageNameLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroPackageNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+HeroPackageNameLabel/constants/shadow_offset_x = 0
+HeroPackageNameLabel/constants/shadow_offset_y = 2
+HeroPackageNameLabel/font_sizes/font_size = 20
+; item 石头进度文字（源 heroitem.lua:151 createttf(text,18) 无色配置→白；旧 14 随手值修正）
+HeroPackageStoneLabel/base_type = &"Label"
+HeroPackageStoneLabel/colors/font_color = Color(1, 1, 1, 1)
+HeroPackageStoneLabel/font_sizes/font_size = 18
+; ── equip_craft 两件套（批 1 Task 10，2026-08-15）──
+; 装备名（源 equipboard/board.lua:323-337 size24 ccc3(66,45,28)+shadow(0,2)）
+EquipCraftNameLabel/base_type = &"Label"
+EquipCraftNameLabel/colors/font_color = Color(0.259, 0.176, 0.11, 1)
+EquipCraftNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipCraftNameLabel/constants/shadow_offset_x = 0
+EquipCraftNameLabel/constants/shadow_offset_y = 2
+EquipCraftNameLabel/font_sizes/font_size = 24
+; 拥有数量行（源 board.lua:55-70 amount_title size20 ccc3(67,59,56)；旧实现 18 号照源修 20）
+EquipCraftHaveLabel/base_type = &"Label"
+EquipCraftHaveLabel/colors/font_color = Color(0.263, 0.231, 0.22, 1)
+EquipCraftHaveLabel/font_sizes/font_size = 20
+; infoButton remark（源 equipcraft.lua:671-681 size18 动态色绿/红 → fill modulate 控色，variation 只定号）
+EquipCraftRemarkLabel/base_type = &"Label"
+EquipCraftRemarkLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipCraftRemarkLabel/font_sizes/font_size = 18
+; 属性动态行（源 board.lua:142-159 att size18 ccc3(64,63,63)+shadow(0,2)）
+EquipCraftAttLabel/base_type = &"Label"
+EquipCraftAttLabel/colors/font_color = Color(0.251, 0.247, 0.247, 1)
+EquipCraftAttLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipCraftAttLabel/constants/shadow_offset_x = 0
+EquipCraftAttLabel/constants/shadow_offset_y = 2
+EquipCraftAttLabel/font_sizes/font_size = 18
+; 合成树装备名/精英标（源 equipcraft.lua:994-1002 name size18 ccc3(255,0,0) / :1185-1189 elite 同规格）
+EquipCraftRedLabel18/base_type = &"Label"
+EquipCraftRedLabel18/colors/font_color = Color(1, 0, 0, 1)
+EquipCraftRedLabel18/font_sizes/font_size = 18
+; 树棕 18（源 :1105-1108 need / :1115-1118 costTitle / :1102 EQUIPPED 同规格 ccc3(50,41,31)）
+EquipCraftBrownLabel18/base_type = &"Label"
+EquipCraftBrownLabel18/colors/font_color = Color(0.196078, 0.160784, 0.121569, 1)
+EquipCraftBrownLabel18/font_sizes/font_size = 18
+; 树动态色 18（源 :1087-1094 amount 红/棕 + :1122-1127 cost 深红/红 运行时刷新 → fill modulate，variation 只定号）
+EquipCraftDynLabel18/base_type = &"Label"
+EquipCraftDynLabel18/colors/font_color = Color(1, 1, 1, 1)
+EquipCraftDynLabel18/font_sizes/font_size = 18
+; 获取途径标题（源 :1139-1143 size20 ccc3(155,34,14)）
+EquipCraftWayTitleLabel/base_type = &"Label"
+EquipCraftWayTitleLabel/colors/font_color = Color(0.607843, 0.133333, 0.054902, 1)
+EquipCraftWayTitleLabel/font_sizes/font_size = 20
+; 获取途径 board 行 title/name（源 :1179-1183 / :1191-1199 size18 ccc3(182,65,21)）
+EquipCraftBoardLabel/base_type = &"Label"
+EquipCraftBoardLabel/colors/font_color = Color(0.713725, 0.254902, 0.082353, 1)
+EquipCraftBoardLabel/font_sizes/font_size = 18
+
+
+; ── package 两件套（批 2 Task 2，2026-08-16）──
+; tab 文字（源 package.lua:418-437 fontinfo ui_normal_button size20 白 +
+; config shadow ccc3(42,31,22) offset(0,2) 显式覆盖 fontinfo 默认 (63,5,0)）
+PackageTabLabel/base_type = &"Label"
+PackageTabLabel/colors/font_color = Color(1, 1, 1, 1)
+PackageTabLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+PackageTabLabel/constants/shadow_offset_x = 0
+PackageTabLabel/constants/shadow_offset_y = 2
+PackageTabLabel/font_sizes/font_size = 20
+; 图鉴按钮文字（源 :510-524 fontinfo ui_normal_button 无 size 覆盖 → 默认 17，
+; config 裸 ccc3(255,255,255) 为无效写法被忽略；shadow 用 fontinfo 默认 ccc3(63,5,0)）
+PackageHandbookLabel/base_type = &"Label"
+PackageHandbookLabel/colors/font_color = Color(1, 1, 1, 1)
+PackageHandbookLabel/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+PackageHandbookLabel/constants/shadow_offset_x = 0
+PackageHandbookLabel/constants/shadow_offset_y = 2
+PackageHandbookLabel/font_sizes/font_size = 17
+; 图鉴按钮三态（源 :466-497 Scale9 sell_number_button + press down 层 → SB_pkg_hb_n/p）
+PackageHandbookBtn/base_type = &"Button"
+PackageHandbookBtn/styles/normal = SubResource("SB_pkg_hb_n")
+PackageHandbookBtn/styles/hover = SubResource("SB_pkg_hb_n")
+PackageHandbookBtn/styles/pressed = SubResource("SB_pkg_hb_p")
+PackageHandbookBtn/styles/disabled = SubResource("SB_pkg_hb_n")
+PackageHandbookBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 背包网格间距（源 :251-276 refreshList cell 中心 dx=75/dy=80；cell 视觉 = frame 纹理
+; 94×95px ×(74/95) = 73.22×74.0（task-11 修，loadEquip 无 length 原点尺寸 ≈÷CS）。
+; GridContainer separation 为 int constant（1.63 会被截 1）→ 取 2/6 使步进 75/80 精确）
+PackageGrid/base_type = &"GridContainer"
+PackageGrid/constants/h_separation = 2
+PackageGrid/constants/v_separation = 6
+
+; ── star_shop 两件套（批 2 Task 4，2026-08-16）──
+; 商品格 item_name（源 itemstarshop.lua 声明表 size20 ccc3(255,255,255)）
+StarShopItemNameLabel/base_type = &"Label"
+StarShopItemNameLabel/colors/font_color = Color(1, 1, 1, 1)
+StarShopItemNameLabel/font_sizes/font_size = 20
+; 消耗提示（源声明表 size19 ccc3(150,236,255)，fill 填 LSTR 文案）
+StarShopCostTitleLabel/base_type = &"Label"
+StarShopCostTitleLabel/colors/font_color = Color(0.588235, 0.92549, 1, 1)
+StarShopCostTitleLabel/font_sizes/font_size = 19
+; 价格 x{amount}（源声明表 size19 ccc3(39,209,232) 被 refreshCostLabel :75-86 运行时覆盖 →
+; 基色白 + fill modulate 动态：足量 (150,236,255)/不足红 (255,0,0)，variation 只定号）
+StarShopStoneNameLabel/base_type = &"Label"
+StarShopStoneNameLabel/colors/font_color = Color(1, 1, 1, 1)
+StarShopStoneNameLabel/font_sizes/font_size = 19
+; 购买窗 title_1/title_2（源 starshopbuywindow.lua 声明表 size20 ccc3(129,204,255)）
+StarShopBuyTitleLabel/base_type = &"Label"
+StarShopBuyTitleLabel/colors/font_color = Color(0.505882, 0.8, 1, 1)
+StarShopBuyTitleLabel/font_sizes/font_size = 20
+; 购买窗 amount/name（源声明表 size20 ccc3(131,240,255)）
+StarShopBuyValueLabel/base_type = &"Label"
+StarShopBuyValueLabel/colors/font_color = Color(0.513726, 0.941176, 1, 1)
+StarShopBuyValueLabel/font_sizes/font_size = 20
+; 购买窗 cancel/ok（源 DGButton fontinfo ui_normal_button 无 size 覆盖 → 默认 17 白 +
+; shadow ccc3(63,5,0) offset(0,2)（package HandbookLabel 同款 fontinfo 先例）；贴图未含 →
+; SB_ssbuy_n/p Flat 降级三态）
+; ── 倒计时行（批 E E4，2026-08-27；源 shop.lua:801-851 time_title_node HorizontalNode
+; 三 Label 横排 (400,350)，offset 间距 10）──
+; 标题「商人将于」/后缀「后离开」（源 size18 ccc3(241,193,113) 金）
+StarShopTimeTitleLabel/base_type = &"Label"
+StarShopTimeTitleLabel/colors/font_color = Color(0.945098, 0.756863, 0.443137, 1)
+StarShopTimeTitleLabel/font_sizes/font_size = 18
+StarShopTimeSuffixLabel/base_type = &"Label"
+StarShopTimeSuffixLabel/colors/font_color = Color(0.945098, 0.756863, 0.443137, 1)
+StarShopTimeSuffixLabel/font_sizes/font_size = 18
+; 倒计时值 gethmsNString（源 size16 ccc3(219,199,168)）
+StarShopTimeLabel/base_type = &"Label"
+StarShopTimeLabel/colors/font_color = Color(0.858824, 0.780392, 0.658824, 1)
+StarShopTimeLabel/font_sizes/font_size = 16
+StarShopBuyBtn/base_type = &"Button"
+StarShopBuyBtn/colors/font_color = Color(1, 1, 1, 1)
+StarShopBuyBtn/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+StarShopBuyBtn/constants/shadow_offset_x = 0
+StarShopBuyBtn/constants/shadow_offset_y = 2
+StarShopBuyBtn/font_sizes/font_size = 17
+StarShopBuyBtn/styles/normal = SubResource("SB_ssbuy_n")
+StarShopBuyBtn/styles/hover = SubResource("SB_ssbuy_n")
+StarShopBuyBtn/styles/pressed = SubResource("SB_ssbuy_p")
+StarShopBuyBtn/styles/disabled = SubResource("SB_ssbuy_n")
+StarShopBuyBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+
+; ── mail 三件两件套（批 2 Task 5，2026-08-16）──
+; 主列表标题（源 mailbox.lua:659-671 size26 ccc3(251,206,16)）
+MailTitleLabel/base_type = &"Label"
+MailTitleLabel/colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+MailTitleLabel/font_sizes/font_size = 26
+; 行内标题（源 :491-503 size20 ccc3(67,59,56)）
+MailRowNameLabel/base_type = &"Label"
+MailRowNameLabel/colors/font_color = Color(0.262745, 0.231373, 0.219608, 1)
+MailRowNameLabel/font_sizes/font_size = 20
+; 行内发件人前缀（源 :505-518 size18 ccc3(67,59,56)）
+MailRowFromTitleLabel/base_type = &"Label"
+MailRowFromTitleLabel/colors/font_color = Color(0.262745, 0.231373, 0.219608, 1)
+MailRowFromTitleLabel/font_sizes/font_size = 18
+; 行内发件人（源 :520-533 size18 ccc3(138,56,1)）
+MailRowFromLabel/base_type = &"Label"
+MailRowFromLabel/colors/font_color = Color(0.541176, 0.219608, 0.003922, 1)
+MailRowFromLabel/font_sizes/font_size = 18
+; 行内日期（源 :535-549 size18 ccc3(157,117,89)）
+MailRowDateLabel/base_type = &"Label"
+MailRowDateLabel/colors/font_color = Color(0.615686, 0.458824, 0.34902, 1)
+MailRowDateLabel/font_sizes/font_size = 18
+; 详情标题（源 content.lua:23-35 size18 ccc3(172,75,30)）
+MailDetailTitleLabel/base_type = &"Label"
+MailDetailTitleLabel/colors/font_color = Color(0.67451, 0.294118, 0.117647, 1)
+MailDetailTitleLabel/font_sizes/font_size = 18
+; 详情正文/发件人（源 :51-68 + :89-112 size16 ccc3(162,88,41) 同规格共用）
+MailDetailTextLabel/base_type = &"Label"
+MailDetailTextLabel/colors/font_color = Color(0.635294, 0.345098, 0.160784, 1)
+MailDetailTextLabel/font_sizes/font_size = 16
+; 附件标题（源 :235-249 size18 ccc3(152,98,34)）
+MailAttachTitleLabel/base_type = &"Label"
+MailAttachTitleLabel/colors/font_color = Color(0.596078, 0.384314, 0.133333, 1)
+MailAttachTitleLabel/font_sizes/font_size = 18
+; 附件数量（源 :190-208 size18 ccc3(129,61,22)）
+MailAttachAmountLabel/base_type = &"Label"
+MailAttachAmountLabel/colors/font_color = Color(0.505882, 0.239216, 0.086275, 1)
+MailAttachAmountLabel/font_sizes/font_size = 18
+; overfull 标题（源声明表 size23 ccc3(253,215,17)）
+MailOverfullTitleLabel/base_type = &"Label"
+MailOverfullTitleLabel/colors/font_color = Color(0.992157, 0.843137, 0.066667, 1)
+MailOverfullTitleLabel/font_sizes/font_size = 23
+; overfull 3 段说明（源 overfull.lua:40-97 size18 ccc3(243,194,113) 共用）
+MailOverfullDescLabel/base_type = &"Label"
+MailOverfullDescLabel/colors/font_color = Color(0.952941, 0.760784, 0.443137, 1)
+MailOverfullDescLabel/font_sizes/font_size = 18
+; overfull 双按钮（源 DGButton 声明表 size20 labelConfig ccc3(239,230,209)
+; + sell_number cap(15.63,15.63,19.53,15.63) 三态 → SB_mo_btn_n/p）
+MailOverfullBtn/base_type = &"Button"
+MailOverfullBtn/colors/font_color = Color(0.937255, 0.901961, 0.819608, 1)
+MailOverfullBtn/font_sizes/font_size = 20
+MailOverfullBtn/styles/normal = SubResource("SB_mo_btn_n")
+MailOverfullBtn/styles/hover = SubResource("SB_mo_btn_n")
+MailOverfullBtn/styles/pressed = SubResource("SB_mo_btn_p")
+MailOverfullBtn/styles/disabled = SubResource("SB_mo_btn_n")
+MailOverfullBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 详情 ok 按钮（源 content.lua:429-473 Scale9 sell_number_button cap(15,22,15,25)
+; 与 package 图鉴按钮同图同 cap → 复用 SB_pkg_hb_n/p；ok_label fontinfo
+; ui_normal_button 17 号 + config 色 ccc3(236,222,209) + 阴影(63,5,0) 偏移(0,2)）
+MailDetailOkBtn/base_type = &"Button"
+MailDetailOkBtn/colors/font_color = Color(0.92549, 0.870588, 0.819608, 1)
+MailDetailOkBtn/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+MailDetailOkBtn/constants/shadow_offset_x = 0
+MailDetailOkBtn/constants/shadow_offset_y = 2
+MailDetailOkBtn/font_sizes/font_size = 17
+MailDetailOkBtn/styles/normal = SubResource("SB_pkg_hb_n")
+MailDetailOkBtn/styles/hover = SubResource("SB_pkg_hb_n")
+MailDetailOkBtn/styles/pressed = SubResource("SB_pkg_hb_p")
+MailDetailOkBtn/styles/disabled = SubResource("SB_pkg_hb_n")
+MailDetailOkBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ==================== midas（批 2 Task 6，2026-08-16）====================
+; 标题（源 midas.lua:823-835 name size20 无 config.color 默认白）
+MidasNameLabel/base_type = &"Label"
+MidasNameLabel/font_sizes/font_size = 20
+; 描述/用尽提示（源 :837-850 + :864-879 size18 ccc3(231,185,108) 共用）
+MidasDescLabel/base_type = &"Label"
+MidasDescLabel/colors/font_color = Color(0.905882, 0.72549, 0.423529, 1)
+MidasDescLabel/font_sizes/font_size = 18
+; 今日次数行（源 refreshTimesBoard :342-396 size16）
+MidasTimesLabel/base_type = &"Label"
+MidasTimesLabel/font_sizes/font_size = 16
+; 花费数字（源 refreshCostBoard :259-268 size18 ccc3(49,219,255)）
+MidasCostValueLabel/base_type = &"Label"
+MidasCostValueLabel/colors/font_color = Color(0.192157, 0.858824, 1, 1)
+MidasCostValueLabel/font_sizes/font_size = 18
+; 获得数字（源 :288-296 size18 ccc3(255,165,49)）
+MidasAcquireValueLabel/base_type = &"Label"
+MidasAcquireValueLabel/colors/font_color = Color(1, 0.647059, 0.192157, 1)
+MidasAcquireValueLabel/font_sizes/font_size = 18
+; use 按钮字（源 :923-935 fontinfo ui_normal_button ccc3(231,206,19)）
+MidasUseBtnLabel/base_type = &"Label"
+MidasUseBtnLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+MidasUseBtnLabel/font_sizes/font_size = 18
+; multi_use 按钮字（源 :978-990 ccc3(231,231,231)）
+MidasMultiBtnLabel/base_type = &"Label"
+MidasMultiBtnLabel/colors/font_color = Color(0.905882, 0.905882, 0.905882, 1)
+MidasMultiBtnLabel/font_sizes/font_size = 18
+; use/multi 按钮三态（源 :881-921/:936-976 Scale9 三图：normal/press 走 SB，
+; disabled 蒙版 use 是 tavern_button_normal_1 整图 TextureRect；multi disabled 与
+; 底图同图省略（视觉 no-op，受控偏离））
+MidasUseBtn/base_type = &"Button"
+MidasUseBtn/styles/normal = SubResource("SB_midas_use_n")
+MidasUseBtn/styles/hover = SubResource("SB_midas_use_n")
+MidasUseBtn/styles/pressed = SubResource("SB_midas_use_p")
+MidasUseBtn/styles/disabled = SubResource("SB_midas_use_n")
+MidasUseBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+MidasMultiBtn/base_type = &"Button"
+MidasMultiBtn/styles/normal = SubResource("SB_midas_multi_n")
+MidasMultiBtn/styles/hover = SubResource("SB_midas_multi_n")
+MidasMultiBtn/styles/pressed = SubResource("SB_midas_multi_p")
+MidasMultiBtn/styles/disabled = SubResource("SB_midas_multi_n")
+MidasMultiBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 连兑确认弹窗按钮（源 uieditor/confirmdialog.lua DGButton sell_number
+; cap(15.63,15.63,19.53,15.63) → 复用 SB_mo_btn_n/p 同图同 cap；labelConfig
+; ccc3(234,225,205) size18）
+MidasConfirmBtn/base_type = &"Button"
+MidasConfirmBtn/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+MidasConfirmBtn/font_sizes/font_size = 18
+MidasConfirmBtn/styles/normal = SubResource("SB_mo_btn_n")
+MidasConfirmBtn/styles/hover = SubResource("SB_mo_btn_n")
+MidasConfirmBtn/styles/pressed = SubResource("SB_mo_btn_p")
+MidasConfirmBtn/styles/disabled = SubResource("SB_mo_btn_n")
+MidasConfirmBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── stage_reset_confirm 两件套（批 3 Task 1，2026-08-16）──
+; 确认按钮（源 dialog.lua confirmDialog :276-317：Scale9 herodetail-upgrade
+; cap(20,20,40,29) + label createttf 20 号 ed.selfFont 白 + 阴影 ccc3(63,5,0)(1,2)；
+; 左 right 默认文案 T(LSTR("FASTSELL.GOOD"))）
+DialogConfirmBtn/base_type = &"Button"
+DialogConfirmBtn/colors/font_color = Color(1, 1, 1, 1)
+DialogConfirmBtn/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+DialogConfirmBtn/constants/shadow_offset_x = 1
+DialogConfirmBtn/constants/shadow_offset_y = 2
+DialogConfirmBtn/font_sizes/font_size = 20
+DialogConfirmBtn/styles/normal = SubResource("SB_dialog_confirm_n")
+DialogConfirmBtn/styles/hover = SubResource("SB_dialog_confirm_n")
+DialogConfirmBtn/styles/pressed = SubResource("SB_dialog_confirm_p")
+DialogConfirmBtn/styles/disabled = SubResource("SB_dialog_confirm_n")
+DialogConfirmBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 弹窗正文（源 createWithText :346-356 createttf(text,20) 白 左对齐垂直居中）
+DialogMsgLabel/base_type = &"Label"
+DialogMsgLabel/colors/font_color = Color(1, 1, 1, 1)
+DialogMsgLabel/font_sizes/font_size = 20
+; ── crusade 两件套（批 3 Task 7，2026-08-16）── 底栏三按钮（查看规则/重新开始/兑换奖励）
+; 三态（cap 见 SB_crusade_action_n 注释）；左栏剩余次数（源 lefttime fontinfo
+; normal_button=18 号 ccc3(235,223,207)，crusadeconfig.lua:1032-1044）。
+CrusadeActionBtn/base_type = &"Button"
+CrusadeActionBtn/styles/normal = SubResource("SB_crusade_action_n")
+CrusadeActionBtn/styles/hover = SubResource("SB_crusade_action_n")
+CrusadeActionBtn/styles/pressed = SubResource("SB_crusade_action_p")
+CrusadeActionBtn/styles/disabled = SubResource("SB_crusade_action_n")
+CrusadeActionBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+CrusadeLefttimeLabel/base_type = &"Label"
+CrusadeLefttimeLabel/colors/font_color = Color(0.921569, 0.874510, 0.811765, 1)
+CrusadeLefttimeLabel/font_sizes/font_size = 18
+; ── excavate_giveup 两件套（excavate 批 Task 1，2026-08-17）──
+; 确认按钮（源 uieditor/confirmdialog.lua DGButton sell_number
+; cap(15.63,15.63,19.53,15.63) → 复用 SB_mo_btn_n/p 同图同 cap；fontinfo
+; ui_normal_button 17 号 + labelConfig ccc3(234,225,205)）
+GiveupConfirmBtn/base_type = &"Button"
+GiveupConfirmBtn/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+GiveupConfirmBtn/font_sizes/font_size = 17
+GiveupConfirmBtn/styles/normal = SubResource("SB_mo_btn_n")
+GiveupConfirmBtn/styles/hover = SubResource("SB_mo_btn_n")
+GiveupConfirmBtn/styles/pressed = SubResource("SB_mo_btn_p")
+GiveupConfirmBtn/styles/disabled = SubResource("SB_mo_btn_n")
+GiveupConfirmBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 内容行标签（源 giveup.lua r11/r21/r31 size20 ccc3(240,192,112)）
+GiveupRowLabel/base_type = &"Label"
+GiveupRowLabel/colors/font_color = Color(0.941176, 0.752941, 0.439216, 1)
+GiveupRowLabel/font_sizes/font_size = 20
+; 行数值（源 r13/r23 size20 ccc3(255,242,205)）
+GiveupRowValue/base_type = &"Label"
+GiveupRowValue/colors/font_color = Color(1, 0.949020, 0.803922, 1)
+GiveupRowValue/font_sizes/font_size = 20
+; ── excavate_explain 两件套（excavate 批 Task 2，2026-08-17）──
+; 通用说明窗文本行（uieditor/explainwindow + excavateexplain.lua createContent
+; createttf 16 号）。故事行 ccc3(255,255,221)（text_list_1 :8-13 + 签名 text_2 :14）
+ExplainStoryLabel/base_type = &"Label"
+ExplainStoryLabel/colors/font_color = Color(1, 1, 0.866667, 1)
+ExplainStoryLabel/font_sizes/font_size = 16
+; 规则行 ccc3(238,204,119)（text_list_3 :15-34，18 子句独立 label）
+ExplainRuleLabel/base_type = &"Label"
+ExplainRuleLabel/colors/font_color = Color(0.933333, 0.8, 0.466667, 1)
+ExplainRuleLabel/font_sizes/font_size = 16
+; 标题（explainwindow 声明表 title size24 ccc3(234,171,41)，text=PVP.RULE_DESCRIPTION）
+ExplainTitleLabel/base_type = &"Label"
+ExplainTitleLabel/colors/font_color = Color(0.917647, 0.670588, 0.160784, 1)
+ExplainTitleLabel/font_sizes/font_size = 24
+; ── excavate_history 两件套（excavate 批 Task 3，2026-08-17）──
+; 窗口标题（uieditor/excavatehistory.lua title size22 ccc3(252,216,17)，text=DEFENSIVE_RECORD）
+HistoryTitleLabel/base_type = &"Label"
+HistoryTitleLabel/colors/font_color = Color(0.988235, 0.847059, 0.066667, 1)
+HistoryTitleLabel/font_sizes/font_size = 22
+; 行敌方名（itemexcavatehistory.lua enemy_name_label size16 ccc3(255,255,255)）
+HistoryNameLabel/base_type = &"Label"
+HistoryNameLabel/colors/font_color = Color(1, 1, 1, 1)
+HistoryNameLabel/font_sizes/font_size = 16
+; 行时间/行动文案（itemexcavatehistory.lua time_label + 代码建 action label size16 ccc3(65,57,54)）
+HistoryInfoLabel/base_type = &"Label"
+HistoryInfoLabel/colors/font_color = Color(0.254902, 0.223529, 0.211765, 1)
+HistoryInfoLabel/font_sizes/font_size = 16
+; ── excavate_search 两件套（excavate 批 Task 4，2026-08-17）──
+; 底部导航钮（uieditor/excavatesearch.lua histroy/explain_button DGButton
+; sell_number_button 系；子 label size22 ccc3(234,225,205) → Button.text 同色号）
+ExcavateNavBtn/base_type = &"Button"
+ExcavateNavBtn/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+ExcavateNavBtn/font_sizes/font_size = 22
+ExcavateNavBtn/styles/normal = SubResource("SB_exc_nav_n")
+ExcavateNavBtn/styles/hover = SubResource("SB_exc_nav_n")
+ExcavateNavBtn/styles/pressed = SubResource("SB_exc_nav_p")
+ExcavateNavBtn/styles/disabled = SubResource("SB_exc_nav_n")
+ExcavateNavBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 搜索钮（excavatesearch.lua search_button tavern_button 系，text 空图标走子 SearchLabel）
+ExcavateSearchBtn/base_type = &"Button"
+ExcavateSearchBtn/styles/normal = SubResource("SB_exc_search_n")
+ExcavateSearchBtn/styles/hover = SubResource("SB_exc_search_n")
+ExcavateSearchBtn/styles/pressed = SubResource("SB_exc_search_p")
+ExcavateSearchBtn/styles/disabled = SubResource("SB_exc_search_n")
+ExcavateSearchBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 花费数字（excavatesearch.lua cost_label size16 基色 ccc3(255,174,53)；
+; 不足红走 fill modulate(1,0,0) 清 G/B 通道，variation 只定号）
+ExcavateCostLabel/base_type = &"Label"
+ExcavateCostLabel/colors/font_color = Color(1, 0.682353, 0.207843, 1)
+ExcavateCostLabel/font_sizes/font_size = 16
+; ── excavate_battle_report 两件套（excavate 批 Task 5，2026-08-17）──
+; 窗口侧标题（uieditor/excavatebattlereport.lua left/right_title size22 ccc3(255,224,131)）
+BattleReportSideTitleLabel/base_type = &"Label"
+BattleReportSideTitleLabel/colors/font_color = Color(1, 0.878431, 0.513725, 1)
+BattleReportSideTitleLabel/font_sizes/font_size = 22
+; 第 N 战标题（itemexcavatebattlereport.lua title_label size23 ccc3(253,210,17)）
+BattleReportTitleLabel/base_type = &"Label"
+BattleReportTitleLabel/colors/font_color = Color(0.992157, 0.823529, 0.066667, 1)
+BattleReportTitleLabel/font_sizes/font_size = 23
+; 玩家行名（itemexcavatebattleplayer.lua name_label size21 ccc3(255,255,255)）
+BattleReportNameLabel/base_type = &"Label"
+BattleReportNameLabel/colors/font_color = Color(1, 1, 1, 1)
+BattleReportNameLabel/font_sizes/font_size = 21
+; ── excavate_team 两件套（excavate 批 Task 6，2026-08-17）──
+; 换队钮（excavateteam.lua:733-760 DGButton task_button scaleSize 125x49.22 size22
+; labelConfig ccc3(234,225,205)；cap 见 SB_exc_team_task 注释）
+ExcavateTeamChangeBtn/base_type = &"Button"
+ExcavateTeamChangeBtn/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+ExcavateTeamChangeBtn/font_sizes/font_size = 22
+ExcavateTeamChangeBtn/styles/normal = SubResource("SB_exc_team_task_n")
+ExcavateTeamChangeBtn/styles/hover = SubResource("SB_exc_team_task_n")
+ExcavateTeamChangeBtn/styles/pressed = SubResource("SB_exc_team_task_p")
+ExcavateTeamChangeBtn/styles/disabled = SubResource("SB_exc_team_task_n")
+ExcavateTeamChangeBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 撤退钮（:761-788 DGButton sell_number cap(15.63,15.63,19.53,15.63) → 与
+; SB_mo_btn（mailoverfull/giveup）同图同 cap 复用；size22 labelConfig 同色）
+ExcavateTeamGiveupBtn/base_type = &"Button"
+ExcavateTeamGiveupBtn/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+ExcavateTeamGiveupBtn/font_sizes/font_size = 22
+ExcavateTeamGiveupBtn/styles/normal = SubResource("SB_mo_btn_n")
+ExcavateTeamGiveupBtn/styles/hover = SubResource("SB_mo_btn_n")
+ExcavateTeamGiveupBtn/styles/pressed = SubResource("SB_mo_btn_p")
+ExcavateTeamGiveupBtn/styles/disabled = SubResource("SB_mo_btn_n")
+ExcavateTeamGiveupBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 玩家名（excavateteam.lua name size20 默认白，挂 name_bg 内 anchor(0,0.5)）
+ExcavateTeamNameLabel/base_type = &"Label"
+ExcavateTeamNameLabel/colors/font_color = Color(1, 1, 1, 1)
+ExcavateTeamNameLabel/font_sizes/font_size = 20
+; 产行标题（lack/speed_label_title size18 ccc3(255,233,133)）
+ExcavateTeamProduceTitle/base_type = &"Label"
+ExcavateTeamProduceTitle/colors/font_color = Color(1, 0.913725, 0.521569, 1)
+ExcavateTeamProduceTitle/font_sizes/font_size = 18
+; 产行数值（lack/speed_number_label size16 默认白）
+ExcavateTeamProduceValue/base_type = &"Label"
+ExcavateTeamProduceValue/colors/font_color = Color(1, 1, 1, 1)
+ExcavateTeamProduceValue/font_sizes/font_size = 16
+; 空驻防兜底提示（单机自创，源空队直接进换队流程 :405-408；16 号白）
+ExcavateTeamEmptyHint/base_type = &"Label"
+ExcavateTeamEmptyHint/colors/font_color = Color(1, 1, 1, 1)
+ExcavateTeamEmptyHint/font_sizes/font_size = 16
+; ── excavate_map 两件套（excavate 批 Task 7，2026-08-17）──
+; 矿点热区透明钮（源 map.lua:726-760 defense_point 点击热区 136x130 + FCA 旗帜，
+; 单机裁 FCA → 透明 Button 热区 + 子 TextureRect 等比 cycle 图标；样式全空防
+; 默认灰底，贴图显示走子节点不拉伸）
+ExcavateNodeBtn/base_type = &"Button"
+ExcavateNodeBtn/styles/normal = SubResource("StyleBoxEmpty_0oxu6")
+ExcavateNodeBtn/styles/hover = SubResource("StyleBoxEmpty_0oxu6")
+ExcavateNodeBtn/styles/pressed = SubResource("StyleBoxEmpty_0oxu6")
+ExcavateNodeBtn/styles/disabled = SubResource("StyleBoxEmpty_0oxu6")
+ExcavateNodeBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── pop_tavern_loot 两件套（UI 重做批5 Task 1，2026-08-18）──
+; 源 poptavernloot.lua:799-812 tavern_label / :837-849 ok_label 走 fontinfo ui_normal_button
+; （fontconfigs.lua:23-31 size17 白，stroke 被注释 → variation 无描边，照批3 :408 先例删迁移发明描边）；
+; :850-863 reward_label size18 ccc3(231,206,19)；:762-773 cost size18 白（CCLabelTTF 默认色）。
+TavernLootBtnGoldLabel/base_type = &"Label"
+TavernLootBtnGoldLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+TavernLootBtnGoldLabel/font_sizes/font_size = 17
+TavernLootBtnLabel/base_type = &"Label"
+TavernLootBtnLabel/colors/font_color = Color(1, 1, 1, 1)
+TavernLootBtnLabel/font_sizes/font_size = 17
+TavernLootRewardLabel/base_type = &"Label"
+TavernLootRewardLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+TavernLootRewardLabel/font_sizes/font_size = 18
+TavernLootCostLabel/base_type = &"Label"
+TavernLootCostLabel/colors/font_color = Color(1, 1, 1, 1)
+TavernLootCostLabel/font_sizes/font_size = 18
+; ── equipboard_ofbuy 两件套（UI 重做批5 Task 3，2026-08-18）──
+; 源 ofbuy.lua + board.lua 继承链色板：name（board.lua:322-337 size24 ccc3(66,45,28)
+; +shadow(0,2)）；HAVE 拥有行（board.lua:55-70 size20 ccc3(67,59,56) 无阴影）；
+; att 行（board.lua:140-158 size18 ccc3(64,63,63)+shadow(0,2)）；碎片合成行
+; （board.lua:206-240 size18 ccc3(66,45,28)+shadow(0,2)）；底行标题/后缀
+; （ofbuy.lua:63-112 size18 ccc3(67,59,56)）；购买数量（ofbuy.lua:80-97 size16 ccc3(0,71,188)）；
+; money（ofbuy.lua:134-150 size16+shadow(0,2)，refreshCostColor :9-16 恒金 ccc3(251,206,16)）；
+; 确认按钮字（ofbuy.lua:171-183 size20 fontinfo ui_normal_button =
+; fontconfigs.lua:23-31 白+shadow(63,5,0)偏移(0,2)，stroke 被注释 → 无描边）。
+OfbuyNameLabel/base_type = &"Label"
+OfbuyNameLabel/colors/font_color = Color(0.259, 0.176, 0.11, 1)
+OfbuyNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+OfbuyNameLabel/constants/shadow_offset_x = 0
+OfbuyNameLabel/constants/shadow_offset_y = 2
+OfbuyNameLabel/font_sizes/font_size = 24
+OfbuyHaveLabel/base_type = &"Label"
+OfbuyHaveLabel/colors/font_color = Color(0.263, 0.231, 0.22, 1)
+OfbuyHaveLabel/font_sizes/font_size = 20
+OfbuyAttLabel/base_type = &"Label"
+OfbuyAttLabel/colors/font_color = Color(0.251, 0.247, 0.247, 1)
+OfbuyAttLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+OfbuyAttLabel/constants/shadow_offset_x = 0
+OfbuyAttLabel/constants/shadow_offset_y = 2
+OfbuyAttLabel/font_sizes/font_size = 18
+OfbuySynthesisLabel/base_type = &"Label"
+OfbuySynthesisLabel/colors/font_color = Color(0.259, 0.176, 0.11, 1)
+OfbuySynthesisLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+OfbuySynthesisLabel/constants/shadow_offset_x = 0
+OfbuySynthesisLabel/constants/shadow_offset_y = 2
+OfbuySynthesisLabel/font_sizes/font_size = 18
+OfbuyRowLabel18/base_type = &"Label"
+OfbuyRowLabel18/colors/font_color = Color(0.263, 0.231, 0.22, 1)
+OfbuyRowLabel18/font_sizes/font_size = 18
+OfbuyAmountLabel16/base_type = &"Label"
+OfbuyAmountLabel16/colors/font_color = Color(0, 0.278, 0.737, 1)
+OfbuyAmountLabel16/font_sizes/font_size = 16
+OfbuyMoneyLabel16/base_type = &"Label"
+OfbuyMoneyLabel16/colors/font_color = Color(0.984, 0.808, 0.063, 1)
+OfbuyMoneyLabel16/colors/font_shadow_color = Color(0, 0, 0, 1)
+OfbuyMoneyLabel16/constants/shadow_offset_x = 0
+OfbuyMoneyLabel16/constants/shadow_offset_y = 2
+OfbuyMoneyLabel16/font_sizes/font_size = 16
+OfbuyConfirmLabel/base_type = &"Label"
+OfbuyConfirmLabel/colors/font_color = Color(1, 1, 1, 1)
+OfbuyConfirmLabel/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+OfbuyConfirmLabel/constants/shadow_offset_x = 0
+OfbuyConfirmLabel/constants/shadow_offset_y = 2
+OfbuyConfirmLabel/font_sizes/font_size = 20
+; ── language_change 两件套（批 4 Task 1，2026-08-17）──
+; 语言名标签（languagechange.lua:164-179 language_label size20 ccc3(220,176,103)；
+; 220/255=0.862745 176/255=0.690196 103/255=0.403914）
+LangNameLabel/base_type = &"Label"
+LangNameLabel/colors/font_color = Color(0.862745, 0.690196, 0.403914, 1)
+LangNameLabel/font_sizes/font_size = 20
+; ── name_input 两件套（批 4 Task 2，2026-08-17）──
+; 标题（bename.lua:148-159 title size=20 无 config.color 默认白）
+NameInputTitleLabel/base_type = &"Label"
+NameInputTitleLabel/colors/font_color = Color(1, 1, 1, 1)
+NameInputTitleLabel/font_sizes/font_size = 20
+; 输入框（源 edit CCLabelTTF 22 号 ccc3(198,175,126) :33-34；底图独立 NameBg
+; Scale9 节点 → LineEdit 本体透明底；caret/selection 同金色系补引擎默认深色缺口）
+NameInputLabel/base_type = &"LineEdit"
+NameInputLabel/colors/font_color = Color(0.776471, 0.686275, 0.494118, 1)
+NameInputLabel/colors/caret_color = Color(0.776471, 0.686275, 0.494118, 1)
+NameInputLabel/colors/selection_color = Color(0.776471, 0.686275, 0.494118, 0.35)
+NameInputLabel/font_sizes/font_size = 22
+NameInputLabel/styles/normal = SubResource("StyleBoxEmpty_0oxu6")
+NameInputLabel/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ok/cancel 按钮（源 :199-292 sell_number_button cap(15,22,15,25) 与 package 图鉴
+; 按钮同图同 cap → 复用 SB_pkg_hb_n/p；label fontinfo ui_normal_button 17 号 +
+; config.color ccc3(235,225,205) 覆盖 fontinfo 默认白 + shadow(63,5,0) offset(0,2)）
+NameInputButton/base_type = &"Button"
+NameInputButton/colors/font_color = Color(0.921569, 0.882353, 0.803922, 1)
+NameInputButton/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+NameInputButton/constants/shadow_offset_x = 0
+NameInputButton/constants/shadow_offset_y = 2
+NameInputButton/font_sizes/font_size = 17
+NameInputButton/styles/normal = SubResource("SB_pkg_hb_n")
+NameInputButton/styles/hover = SubResource("SB_pkg_hb_n")
+NameInputButton/styles/pressed = SubResource("SB_pkg_hb_p")
+NameInputButton/styles/disabled = SubResource("SB_pkg_hb_n")
+NameInputButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; ── avatar 两件套（批 4 Task 3，2026-08-17）──
+; 分类标题/解锁提示（ofavatar.lua createSubhead:116-117 + createUnlockPrompt:124-125
+; createttf(text,18) + setLabelColor ccc3(231,206,19)；231/255=0.905882
+; 206/255=0.807843 19/255=0.07451；同参数两处复用同一 variation）
+AvatarTitleLabel/base_type = &"Label"
+AvatarTitleLabel/colors/font_color = Color(0.905882, 0.807843, 0.07451, 1)
+AvatarTitleLabel/font_sizes/font_size = 18
+; 头像网格（源 getIconPos:146-148 x 步进 100/y 步进 90，icon 显示 106/CS=82.73
+; → 列距 100-82.73≈17 行距 90-82.73≈7；int constant）
+AvatarGrid/base_type = &"GridContainer"
+AvatarGrid/constants/h_separation = 17
+AvatarGrid/constants/v_separation = 7
+; ── equipboard 两件套（批 4 Task 6，2026-08-17）── 源 board.lua + ofpackage.lua。
+; 与 EquipCraft 组（批 1 Task 10）同源同参数（ofcraft/board 共用 board.lua 基类 UI），
+; 有意各建独立组：panel 语义独立，后续各自调样式互不牵连。
+; 修复轮 D（2026-08-18 用户实跑"字体颜色有问题"）：色值/阴影实测全部精确=源
+; （PIL 采样 name(66,45,28)/have(67,59,56)/att(64,63,63)），根因有二——
+; ①无自定义字体时 Godot 系统 fallback 字形与源不同；②字号漏乘 CS（本 panel 布局
+; 常量全是"源点数×1.28125"口径如 NAME_MAX_W 208=源 160 点，字号却是源点数直用，
+; 24px 字配 208px 框 vs 源 24 点字配 160 点框，比例小 22%，观感发灰发淡）。
+; 本组 6 Label 挂源字体 arial_unicode_ms.ttf（源 hello.lua ed.font，1.87MB 照搬）
+; + 字号补 ×CS（24→31/20→26/18→23）；按钮 label 源 fontinfo ui_normal_button
+; size=17 点（ofpackage.lua 无 base.size → readnode:342-346 取 fontInfo.size，
+; resource_manager.lua:709-731）→ 22，批 4 Task 6 记 20 系字号笔误。
+; 装备名（源 board.lua:323-337 size24 ccc3(66,45,28) + shadow(0,2)；旧 tscn 漏影本批补）
+EquipboardNameLabel/base_type = &"Label"
+EquipboardNameLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardNameLabel/colors/font_color = Color(0.259, 0.176, 0.11, 1)
+EquipboardNameLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipboardNameLabel/constants/shadow_offset_x = 0
+EquipboardNameLabel/constants/shadow_offset_y = 2
+EquipboardNameLabel/font_sizes/font_size = 31
+; 拥有量/售价标题（源 board.lua:55-70 amount_title + ofpackage.lua:63-77 sell_title
+; 同参数 size20 ccc3(67,59,56) → 同 variation 两处复用；旧实现 18 号照源修 20，
+; 同 EquipCraftHaveLabel 批 1 口径）
+EquipboardHaveLabel/base_type = &"Label"
+EquipboardHaveLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardHaveLabel/colors/font_color = Color(0.263, 0.231, 0.22, 1)
+EquipboardHaveLabel/font_sizes/font_size = 26
+; 属性动态行（源 board.lua:142-159 att size18 ccc3(64,63,63) + shadow(0,2)；旧 gd 漏影本批补）
+EquipboardAttLabel/base_type = &"Label"
+EquipboardAttLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardAttLabel/colors/font_color = Color(0.251, 0.247, 0.247, 1)
+EquipboardAttLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipboardAttLabel/constants/shadow_offset_x = 0
+EquipboardAttLabel/constants/shadow_offset_y = 2
+EquipboardAttLabel/font_sizes/font_size = 23
+; 碎片合成行（源 board.lua:206-238 fragment_title/amount size18 ccc3(66,45,28) + shadow(0,2)）
+EquipboardFragmentLabel/base_type = &"Label"
+EquipboardFragmentLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardFragmentLabel/colors/font_color = Color(0.259, 0.176, 0.11, 1)
+EquipboardFragmentLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+EquipboardFragmentLabel/constants/shadow_offset_x = 0
+EquipboardFragmentLabel/constants/shadow_offset_y = 2
+EquipboardFragmentLabel/font_sizes/font_size = 23
+; 售价数字（源 ofpackage.lua:91-104 sell_number size18 ccc3(155,34,14)）
+EquipboardPriceLabel/base_type = &"Label"
+EquipboardPriceLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardPriceLabel/colors/font_color = Color(0.607843, 0.133333, 0.054902, 1)
+EquipboardPriceLabel/font_sizes/font_size = 23
+; 按钮文字（源 ofpackage.lua:140-152/183-199 fontinfo ui_normal_button size20 白 +
+; config shadow ccc3(42,31,22) offset(0,2) 显式覆盖 fontinfo 默认 (63,5,0)）
+EquipboardBtnLabel/base_type = &"Label"
+EquipboardBtnLabel/fonts/font = ExtResource("20_arialuni")
+EquipboardBtnLabel/colors/font_color = Color(1, 1, 1, 1)
+EquipboardBtnLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+EquipboardBtnLabel/constants/shadow_offset_x = 0
+EquipboardBtnLabel/constants/shadow_offset_y = 2
+EquipboardBtnLabel/font_sizes/font_size = 22
+; 卖出/右按钮三态（源 ofpackage.lua:107-182 Scale9 package_button + press down 层 → SB_eb_btn_n/p）
+EquipboardBtn/base_type = &"Button"
+EquipboardBtn/styles/normal = SubResource("SB_eb_btn_n")
+EquipboardBtn/styles/hover = SubResource("SB_eb_btn_n")
+EquipboardBtn/styles/pressed = SubResource("SB_eb_btn_p")
+EquipboardBtn/styles/disabled = SubResource("SB_eb_btn_n")
+EquipboardBtn/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+
+; ── 批4 Task 8：ranklist 系（2026-08-18）──
+; 主面板标题（源 ranklist.lua:1782-1797 initTitle size24 ccc3(255,214,17)，无阴影）
+RanklistTitleLabel/base_type = &"Label"
+RanklistTitleLabel/colors/font_color = Color(1, 0.839216, 0.066667, 1)
+RanklistTitleLabel/font_sizes/font_size = 24
+; tab 组按钮文字（源 createRankBtn :2045-2046 选中 ccc3(251,206,16) / 未选 ccc3(234,225,205)，
+; size18 + shadow ccc3(42,31,22) 偏移(0,2) :2091-2106；fill 切 variation 字符串换选中态）
+RanklistGroupTabSelLabel/base_type = &"Label"
+RanklistGroupTabSelLabel/colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+RanklistGroupTabSelLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+RanklistGroupTabSelLabel/constants/shadow_offset_x = 0
+RanklistGroupTabSelLabel/constants/shadow_offset_y = 2
+RanklistGroupTabSelLabel/font_sizes/font_size = 18
+RanklistGroupTabLabel/base_type = &"Label"
+RanklistGroupTabLabel/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+RanklistGroupTabLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+RanklistGroupTabLabel/constants/shadow_offset_x = 0
+RanklistGroupTabLabel/constants/shadow_offset_y = 2
+RanklistGroupTabLabel/font_sizes/font_size = 18
+; tab 子按钮文字（源 :2046 选中 ccc3(254,255,152) / 未选 ccc3(222,222,222)，同阴影）
+RanklistSubTabSelLabel/base_type = &"Label"
+RanklistSubTabSelLabel/colors/font_color = Color(0.996078, 1, 0.596078, 1)
+RanklistSubTabSelLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+RanklistSubTabSelLabel/constants/shadow_offset_x = 0
+RanklistSubTabSelLabel/constants/shadow_offset_y = 2
+RanklistSubTabSelLabel/font_sizes/font_size = 18
+RanklistSubTabLabel/base_type = &"Label"
+RanklistSubTabLabel/colors/font_color = Color(0.870588, 0.870588, 0.870588, 1)
+RanklistSubTabLabel/colors/font_shadow_color = Color(0.164706, 0.121569, 0.086275, 1)
+RanklistSubTabLabel/constants/shadow_offset_x = 0
+RanklistSubTabLabel/constants/shadow_offset_y = 2
+RanklistSubTabLabel/font_sizes/font_size = 18
+; 行内 tips/数值（源 initCommonItemHandler :863-905 record/value size18 ccc3(128,54,23)）
+RanklistRowRecordLabel/base_type = &"Label"
+RanklistRowRecordLabel/colors/font_color = Color(0.501961, 0.211765, 0.090196, 1)
+RanklistRowRecordLabel/font_sizes/font_size = 18
+; 白 18 无描边（行 name :828-838 + overlay 数字/名字，源均无描边；WhiteLabel18 有 outline 不符）
+RanklistWhiteLabel18/base_type = &"Label"
+RanklistWhiteLabel18/colors/font_color = Color(1, 1, 1, 1)
+RanklistWhiteLabel18/font_sizes/font_size = 18
+; summary 弹窗字段（源 userpvpsummary.lua：title 系 ccc3(255,204,118) :96/:124/:152，
+; value 系 ccc3(247,236,198) :138/:166，size18）
+RanklistSummaryTitleLabel/base_type = &"Label"
+RanklistSummaryTitleLabel/colors/font_color = Color(1, 0.8, 0.462745, 1)
+RanklistSummaryTitleLabel/font_sizes/font_size = 18
+RanklistSummaryValueLabel/base_type = &"Label"
+RanklistSummaryValueLabel/colors/font_color = Color(0.968627, 0.92549, 0.776471, 1)
+RanklistSummaryValueLabel/font_sizes/font_size = 18
+; 我的排名浮窗（源 :1381-1410 较昨日 hint ccc3(241,193,113) / delta ccc3(242,98,60)，size18）
+RanklistOverlayHintLabel/base_type = &"Label"
+RanklistOverlayHintLabel/colors/font_color = Color(0.945098, 0.756863, 0.443137, 1)
+RanklistOverlayHintLabel/font_sizes/font_size = 18
+RanklistOverlayDeltaLabel/base_type = &"Label"
+RanklistOverlayDeltaLabel/colors/font_color = Color(0.94902, 0.384314, 0.235294, 1)
+RanklistOverlayDeltaLabel/font_sizes/font_size = 18
+; ── 批 C/D（2026-08-27 走查）新增 ──
+; 等级牌字（源 getLevelIcon :1093 ccc3(255,255,228) 20 号）
+RanklistLevelLabel20/base_type = &"Label"
+RanklistLevelLabel20/colors/font_color = Color(1, 1, 0.894118, 1)
+RanklistLevelLabel20/font_sizes/font_size = 20
+; 浮窗 tips 值（源 :1561 ccc3(255,234,198) 18 号）
+RanklistOverlayValueLabel/base_type = &"Label"
+RanklistOverlayValueLabel/colors/font_color = Color(1, 0.917647, 0.776471, 1)
+RanklistOverlayValueLabel/font_sizes/font_size = 18
+; 规则弹窗段落标题/正文（源 fontconfigs dark_white ccc3(255,255,221) 17 号 /
+; normalButton ccc3(239,197,121) 17 号）
+LadderRulesSectionLabel/base_type = &"Label"
+LadderRulesSectionLabel/colors/font_color = Color(1, 1, 0.866667, 1)
+LadderRulesSectionLabel/font_sizes/font_size = 17
+LadderRulesBodyLabel/base_type = &"Label"
+LadderRulesBodyLabel/colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+LadderRulesBodyLabel/font_sizes/font_size = 17
+; ── ladder 天梯面板（批4 Task 9，2026-08-18）── 源 pvp.lua 6 panelLayer 本项目消费
+; 3 层（main :1933-3050 / rank :1601 / record :1702）；heroInfo/reward/rewardInfo 未迁移。
+; tab 行/挑战按钮（源 cap(14,20,60,23) 同 crusade 系）复用 SB_crusade_action，文字走
+; 子 Label（stylebox 不对称 margin L14/R92 致 Button.text 偏移，crusade 先例）。
+LadderTabButton/base_type = &"Button"
+LadderTabButton/styles/normal = SubResource("SB_crusade_action_n")
+LadderTabButton/styles/hover = SubResource("SB_crusade_action_n")
+LadderTabButton/styles/pressed = SubResource("SB_crusade_action_p")
+LadderTabButton/styles/disabled = SubResource("SB_crusade_action_n")
+LadderTabButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+LadderChangeButton/base_type = &"Button"
+LadderChangeButton/styles/normal = SubResource("SB_ladder_change_n")
+LadderChangeButton/styles/hover = SubResource("SB_ladder_change_n")
+LadderChangeButton/styles/pressed = SubResource("SB_ladder_change_p")
+LadderChangeButton/styles/disabled = SubResource("SB_ladder_change_n")
+LadderChangeButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+LadderWideButton/base_type = &"Button"
+LadderWideButton/styles/normal = SubResource("SB_ladder_normal50_n")
+LadderWideButton/styles/hover = SubResource("SB_ladder_normal50_n")
+LadderWideButton/styles/pressed = SubResource("SB_ladder_normal50_p")
+LadderWideButton/styles/disabled = SubResource("SB_ladder_normal50_n")
+LadderWideButton/styles/focus = SubResource("StyleBoxEmpty_0oxu6")
+; 主层深灰字 20（源 rank/leftTime/cdText/DEFENSIVE_TEAM_ ccc3(67,59,56) size20）
+LadderDarkLabel20/base_type = &"Label"
+LadderDarkLabel20/colors/font_color = Color(0.262745, 0.231373, 0.219608, 1)
+LadderDarkLabel20/font_sizes/font_size = 20
+; 主层橙红数值 20（源 myRank/gpsValue/rankValue/gpsValue/leftTimeNum ccc3(138,56,1)）
+LadderOrangeLabel20/base_type = &"Label"
+LadderOrangeLabel20/colors/font_color = Color(0.541176, 0.219608, 0.003922, 1)
+LadderOrangeLabel20/font_sizes/font_size = 20
+; 弹层标题 24（源 rank/record 层标题 ccc3(243,196,16) size24 + fontinfo ui_normal_button
+; 阴影 ccc3(63,5,0) offset(0,2)，fontconfigs.lua:23-31）
+LadderTitleLabel24/base_type = &"Label"
+LadderTitleLabel24/colors/font_color = Color(0.952941, 0.768627, 0.062745, 1)
+LadderTitleLabel24/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+LadderTitleLabel24/constants/shadow_offset_x = 0
+LadderTitleLabel24/constants/shadow_offset_y = 2
+LadderTitleLabel24/font_sizes/font_size = 24
+; 按钮字 17（源各按钮 Label ccc3(234,225,205) + fontinfo ui_normal_button 阴影）
+LadderBtnLabel17/base_type = &"Label"
+LadderBtnLabel17/colors/font_color = Color(0.917647, 0.882353, 0.803922, 1)
+LadderBtnLabel17/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+LadderBtnLabel17/constants/shadow_offset_x = 0
+LadderBtnLabel17/constants/shadow_offset_y = 2
+LadderBtnLabel17/font_sizes/font_size = 17
+; 换一批按钮字 17（源 changeEnemyName ccc3(251,206,16)，stage 系 (250,205,16) 不同源色不混用）
+LadderChangeBtnLabel17/base_type = &"Label"
+LadderChangeBtnLabel17/colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+LadderChangeBtnLabel17/colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+LadderChangeBtnLabel17/constants/shadow_offset_x = 0
+LadderChangeBtnLabel17/constants/shadow_offset_y = 2
+LadderChangeBtnLabel17/font_sizes/font_size = 17
+; 购买次数价格数字 20（源 changeEnemyCost size20 ccc3(251,206,16) + setLabelShadow(ccc3(0,0,0), ccp(0,2)) :3133-3134）
+LadderPriceLabel20/base_type = &"Label"
+LadderPriceLabel20/colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+LadderPriceLabel20/colors/font_shadow_color = Color(0, 0, 0, 1)
+LadderPriceLabel20/constants/shadow_offset_x = 0
+LadderPriceLabel20/constants/shadow_offset_y = 2
+LadderPriceLabel20/font_sizes/font_size = 20
+; 卡名/记录名 20 白+黑影（源 enemyId setLabelShadow(ccc3(0,0,0), ccp(0,2)) :3094）
+LadderWhiteShadowLabel20/base_type = &"Label"
+LadderWhiteShadowLabel20/colors/font_color = Color(1, 1, 1, 1)
+LadderWhiteShadowLabel20/colors/font_shadow_color = Color(0, 0, 0, 1)
+LadderWhiteShadowLabel20/constants/shadow_offset_x = 0
+LadderWhiteShadowLabel20/constants/shadow_offset_y = 2
+LadderWhiteShadowLabel20/font_sizes/font_size = 20
+; 榜行白 20（源 createRankInfo rank label ccc3(255,255,255) size20 无阴影）
+LadderWhiteLabel20/base_type = &"Label"
+LadderWhiteLabel20/colors/font_color = Color(1, 1, 1, 1)
+LadderWhiteLabel20/font_sizes/font_size = 20
+; 记录行时间 20（源 time label ccc3(93,84,78) size20）
+LadderTimeLabel20/base_type = &"Label"
+LadderTimeLabel20/colors/font_color = Color(0.364706, 0.329412, 0.305882, 1)
+LadderTimeLabel20/font_sizes/font_size = 20
+; 卡内等级 18（源 enemyLevel ccc3(255,234,198) size18 :2410-2423）
+LadderCreamLabel18/base_type = &"Label"
+LadderCreamLabel18/colors/font_color = Color(1, 0.917647, 0.776471, 1)
+LadderCreamLabel18/font_sizes/font_size = 18
+; （2026-09-10 召唤确认框根修：旧 ShopConfirmBtn 已删——cap 误用 equip_strengthen
+; 口径 right=24（源 dialog 确认框 cap w=40 → right=37）+ 自创 90x35 尺寸，弹窗按钮
+; 端头拉宽/内框方折的根因；通用确认框统一改走 DialogConfirmBtn，见 SB_dialog_confirm_n 注释）
+; ── exercise_degree 难度弹窗（2026-09-12，源 exercise.lua degreeWindow :380-455/:692-770）──
+; times_title 源 :398-407 size20 ccc3(241,193,113)；times 数字源 :408-417 size20 ccc3(233,214,181)。
+ExerciseTimesTitleLabel/base_type = &"Label"
+ExerciseTimesTitleLabel/colors/font_color = Color(0.945, 0.757, 0.443, 1)
+ExerciseTimesTitleLabel/font_sizes/font_size = 20
+ExerciseTimesNumberLabel/base_type = &"Label"
+ExerciseTimesNumberLabel/colors/font_color = Color(0.914, 0.839, 0.710, 1)
+ExerciseTimesNumberLabel/font_sizes/font_size = 20
+; 难度槽标题（源 act_select_difficulty_*_1.png 标题图资源库缺失→文字替代；无源字号，
+; 16 号白+黑影自定，阴影参数照 ExerciseEntryButton 系先例）
+ExerciseDegreeSlotLabel/base_type = &"Label"
+ExerciseDegreeSlotLabel/colors/font_color = Color(1, 1, 1, 1)
+ExerciseDegreeSlotLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ExerciseDegreeSlotLabel/constants/shadow_offset_x = 0
+ExerciseDegreeSlotLabel/constants/shadow_offset_y = 2
+ExerciseDegreeSlotLabel/font_sizes/font_size = 16
+
+; ===== 公会一期（2026-09-19；源 guildconfig.lua 声明式表无逐元素色值，取邮件行同族暖棕自定） =====
+; 公会列表行名（mail 行名同规格 size20 深棕）
+GuildRowNameLabel/base_type = &"Label"
+GuildRowNameLabel/colors/font_color = Color(0.262745, 0.231373, 0.219608, 1)
+GuildRowNameLabel/font_sizes/font_size = 20
+; 行内宣言/等级限制/加入方式/成员描述（size16 棕灰，MailRowDate 同色族）
+GuildRowDescLabel/base_type = &"Label"
+GuildRowDescLabel/colors/font_color = Color(0.615686, 0.458824, 0.34902, 1)
+GuildRowDescLabel/font_sizes/font_size = 16
+; 主页公会名大字（size26 金棕，邮件详情标题同族）
+GuildNameLabel/base_type = &"Label"
+GuildNameLabel/colors/font_color = Color(0.67451, 0.294118, 0.117647, 1)
+GuildNameLabel/font_sizes/font_size = 26
+; 主页头部信息（ID/宣言/成员数/活跃，size16 深棕白底可读）
+GuildHeadInfoLabel/base_type = &"Label"
+GuildHeadInfoLabel/colors/font_color = Color(0.34902, 0.290196, 0.243137, 1)
+GuildHeadInfoLabel/font_sizes/font_size = 16
+
+; ===== 活动系统（2026-10-13；源 fontconfigs.lua op_act_* / dark_* 照搬） =====
+; 面板标题（源 op_act_title1 :282：size20 金(250,205,16) 黑影(0,2)；详情 title 用 op_act_title :276 同色 18→UIRes 覆盖 20 统一）
+ActTitleLabel/base_type = &"Label"
+ActTitleLabel/colors/font_color = Color(0.980392, 0.803922, 0.062745, 1)
+ActTitleLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ActTitleLabel/constants/shadow_offset_x = 0
+ActTitleLabel/constants/shadow_offset_y = 2
+ActTitleLabel/font_sizes/font_size = 20
+; 列表节标题（源 op_act_title :276 size18）
+ActSectionLabel/base_type = &"Label"
+ActSectionLabel/colors/font_color = Color(0.980392, 0.803922, 0.062745, 1)
+ActSectionLabel/colors/font_shadow_color = Color(0, 0, 0, 1)
+ActSectionLabel/constants/shadow_offset_x = 0
+ActSectionLabel/constants/shadow_offset_y = 2
+ActSectionLabel/font_sizes/font_size = 18
+; 行标题/门槛前缀/可获得（源 op_act_grey :288 size18 (53,46,48)）
+ActGreyLabel18/base_type = &"Label"
+ActGreyLabel18/colors/font_color = Color(0.207843, 0.180392, 0.188235, 1)
+ActGreyLabel18/font_sizes/font_size = 18
+; 行描述（源 op_act_red :316 size18 (138,56,1)）
+ActRedLabel18/base_type = &"Label"
+ActRedLabel18/colors/font_color = Color(0.541176, 0.219608, 0.003922, 1)
+ActRedLabel18/font_sizes/font_size = 18
+; 门槛数值（源 op_act_dark_blue :292 size18 (0,71,187)）
+ActBlueLabel18/base_type = &"Label"
+ActBlueLabel18/colors/font_color = Color(0, 0.278431, 0.733333, 1)
+ActBlueLabel18/font_sizes/font_size = 18
+; 奖励名（源 op_act_item_name :296 size18 (131,45,0)）
+ActItemNameLabel/base_type = &"Label"
+ActItemNameLabel/colors/font_color = Color(0.513725, 0.176471, 0, 1)
+ActItemNameLabel/font_sizes/font_size = 18
+; 已累计（源 op_act_light_blue :310 size18 (62,226,255) 黑影）
+ActLightBlueLabel18/base_type = &"Label"
+ActLightBlueLabel18/colors/font_color = Color(0.243137, 0.886275, 1, 1)
+ActLightBlueLabel18/colors/font_shadow_color = Color(0, 0, 0, 1)
+ActLightBlueLabel18/constants/shadow_offset_x = 0
+ActLightBlueLabel18/constants/shadow_offset_y = 2
+ActLightBlueLabel18/font_sizes/font_size = 18
+; 活动时间/介绍标签（源 dark_yellow :97 size17，UIRes base.size=20 覆盖）
+ActFieldLabel20/base_type = &"Label"
+ActFieldLabel20/colors/font_color = Color(0.933333, 0.8, 0.466667, 1)
+ActFieldLabel20/font_sizes/font_size = 20
+; 正文/时间值/规则文本（源 dark_white :101 size17，UIRes base.size=18 覆盖）
+ActBodyLabel18/base_type = &"Label"
+ActBodyLabel18/colors/font_color = Color(1, 1, 0.866667, 1)
+ActBodyLabel18/font_sizes/font_size = 18
+; 规则按钮文字（源 normal_button :85 size18 (235,223,207)）
+ActRulesBtnLabel/base_type = &"Label"
+ActRulesBtnLabel/colors/font_color = Color(0.921569, 0.87451, 0.811765, 1)
+ActRulesBtnLabel/font_sizes/font_size = 18

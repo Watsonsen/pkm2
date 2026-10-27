@@ -1,0 +1,338 @@
+[gd_scene format=3 uid="uid://btv133mrhd536"]
+
+[ext_resource type="Texture2D" uid="uid://iiqj0g6fyk20" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_bg"]
+[ext_resource type="Texture2D" uid="uid://dqa34v8g886cf" path="res://assets/ui/alpha/HVGA/backbtn.png" id="2_back"]
+[ext_resource type="Texture2D" uid="uid://cxusvs3ojqiiw" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="3_backp"]
+[ext_resource type="Texture2D" uid="uid://bea8vucu6tw88" path="res://assets/ui/alpha/HVGA/herolist.png" id="4_list"]
+[ext_resource type="Texture2D" uid="uid://dqjwj1q4ddgoi" path="res://assets/ui/alpha/HVGA/heroselected.png" id="5_team"]
+[ext_resource type="Texture2D" uid="uid://b4smb84qsjp26" path="res://assets/ui/alpha/HVGA/herobucket.png" id="6_bucket"]
+[ext_resource type="Texture2D" uid="uid://cl43iwr2fhm7i" path="res://assets/ui/alpha/HVGA/herobucket-halo.png" id="7_halo"]
+[ext_resource type="Texture2D" uid="uid://8hvn3551duor" path="res://assets/ui/alpha/HVGA/classbtn.png" id="8_class"]
+[ext_resource type="Texture2D" uid="uid://cfh88may2705n" path="res://assets/ui/alpha/HVGA/classbtnselected.png" id="9_classsel"]
+
+[node name="BattlePrepareContent" type="Control" unique_id=1368445787]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Bg" type="TextureRect" parent="." unique_id=1841536197]
+layout_mode = 0
+offset_right = 800.0
+offset_bottom = 480.0
+mouse_filter = 2
+texture = ExtResource("1_bg")
+expand_mode = 1
+
+[node name="BackBtn" type="TextureButton" parent="." unique_id=1464222576]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 40.0
+offset_top = 15.0
+offset_right = 97.76
+offset_bottom = 73.54
+texture_normal = ExtResource("2_back")
+texture_pressed = ExtResource("3_backp")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="ListFrame" type="TextureRect" parent="." unique_id=381973624]
+layout_mode = 0
+offset_left = 100.51
+offset_top = 18.05
+offset_right = 669.49
+offset_bottom = 341.95
+mouse_filter = 2
+texture = ExtResource("4_list")
+expand_mode = 1
+
+[node name="ListTitleLabel" type="Label" parent="ListFrame" unique_id=492575934]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 6.0
+offset_right = -10.0
+offset_bottom = 28.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 0.808, 0.122, 1)
+theme_override_font_sizes/font_size = 18
+text = "请选择出战英雄"
+horizontal_alignment = 1
+
+[node name="ListScroll" type="ScrollContainer" parent="." unique_id=2071296955]
+layout_mode = 0
+offset_left = 147.0
+offset_top = 38.0
+offset_right = 640.0
+offset_bottom = 325.0
+mouse_filter = 0
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+
+[node name="ListGrid" type="GridContainer" parent="ListScroll" unique_id=1418027486]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 5
+
+[node name="TabAllBtn" type="TextureButton" parent="." unique_id=1614992156]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 655.71
+offset_top = 35.73
+offset_right = 760.29
+offset_bottom = 94.27
+texture_normal = ExtResource("8_class")
+texture_pressed = ExtResource("9_classsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabAllLabel" type="Label" parent="." unique_id=1562017241]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 654.17
+offset_top = 49.63
+offset_right = 765.83
+offset_bottom = 80.38
+theme_type_variation = &"BattlePrepareTabLabel"
+text = "全部"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabFrontBtn" type="TextureButton" parent="." unique_id=232964824]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 655.71
+offset_top = 95.73
+offset_right = 760.29
+offset_bottom = 154.27
+texture_normal = ExtResource("8_class")
+texture_pressed = ExtResource("9_classsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabFrontLabel" type="Label" parent="." unique_id=1399222185]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 654.17
+offset_top = 109.63
+offset_right = 765.83
+offset_bottom = 140.38
+theme_type_variation = &"BattlePrepareTabLabel"
+text = "前排"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabMiddleBtn" type="TextureButton" parent="." unique_id=156368317]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 655.71
+offset_top = 155.73
+offset_right = 760.29
+offset_bottom = 214.27
+texture_normal = ExtResource("8_class")
+texture_pressed = ExtResource("9_classsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabMiddleLabel" type="Label" parent="." unique_id=1384254076]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 654.17
+offset_top = 169.63
+offset_right = 765.83
+offset_bottom = 200.38
+theme_type_variation = &"BattlePrepareTabLabel"
+text = "中排"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabBackBtn" type="TextureButton" parent="." unique_id=1762690976]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 655.71
+offset_top = 215.73
+offset_right = 760.29
+offset_bottom = 274.27
+texture_normal = ExtResource("8_class")
+texture_pressed = ExtResource("9_classsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabBackLabel" type="Label" parent="." unique_id=1361665494]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 654.17
+offset_top = 229.63
+offset_right = 765.83
+offset_bottom = 260.38
+theme_type_variation = &"BattlePrepareTabLabel"
+text = "后排"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TeamBg" type="TextureRect" parent="." unique_id=1105693565]
+layout_mode = 0
+offset_left = 13.25
+offset_top = 374.35
+offset_right = 690.75
+offset_bottom = 465.65
+mouse_filter = 2
+texture = ExtResource("5_team")
+expand_mode = 1
+
+[node name="MemberBg1" type="TextureRect" parent="." unique_id=863531949]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 137.37
+offset_top = 341.25
+offset_right = 246.63
+offset_bottom = 456.75
+mouse_filter = 2
+texture = ExtResource("6_bucket")
+expand_mode = 1
+
+[node name="Halo" type="TextureRect" parent="MemberBg1" unique_id=1936254249]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_halo")
+expand_mode = 1
+
+[node name="MemberBg2" type="TextureRect" parent="." unique_id=1377487478]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 237.37
+offset_top = 341.25
+offset_right = 346.63
+offset_bottom = 456.75
+mouse_filter = 2
+texture = ExtResource("6_bucket")
+expand_mode = 1
+
+[node name="Halo" type="TextureRect" parent="MemberBg2" unique_id=694535336]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_halo")
+expand_mode = 1
+
+[node name="MemberBg3" type="TextureRect" parent="." unique_id=716092268]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 337.37
+offset_top = 341.25
+offset_right = 446.63
+offset_bottom = 456.75
+mouse_filter = 2
+texture = ExtResource("6_bucket")
+expand_mode = 1
+
+[node name="Halo" type="TextureRect" parent="MemberBg3" unique_id=1876028288]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_halo")
+expand_mode = 1
+
+[node name="MemberBg4" type="TextureRect" parent="." unique_id=1020208174]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 437.37
+offset_top = 341.25
+offset_right = 546.63
+offset_bottom = 456.75
+mouse_filter = 2
+texture = ExtResource("6_bucket")
+expand_mode = 1
+
+[node name="Halo" type="TextureRect" parent="MemberBg4" unique_id=579346618]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_halo")
+expand_mode = 1
+
+[node name="MemberBg5" type="TextureRect" parent="." unique_id=1093736056]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 537.37
+offset_top = 341.25
+offset_right = 646.63
+offset_bottom = 456.75
+mouse_filter = 2
+texture = ExtResource("6_bucket")
+expand_mode = 1
+
+[node name="Halo" type="TextureRect" parent="MemberBg5" unique_id=1660694249]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_halo")
+expand_mode = 1
+
+[node name="GoBtn" type="Button" parent="." unique_id=1265539629]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 660.05
+offset_top = 370.0
+offset_right = 759.95
+offset_bottom = 466.0
+text = "确定"
+
+[node name="GsTitleLabel" type="Label" parent="." unique_id=1014509362]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 30.0
+offset_top = 396.0
+offset_right = 160.0
+offset_bottom = 414.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "战斗力"
+horizontal_alignment = 1
+
+[node name="GsLabel" type="Label" parent="." unique_id=879334483]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 30.0
+offset_top = 424.0
+offset_right = 160.0
+offset_bottom = 442.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "0"
+horizontal_alignment = 1

@@ -1,0 +1,98 @@
+extends RefCounted
+
+## BB 英雄 hook（Logic 层）— 照源 BB.lua（84 行）翻译。
+## 背击免疫 + 累计伤害大招：takeDamage（ultBuff 且 source 同向=背击 → 临时 PIMU/MIMU -= ultBuff → basefunc → 还原）+
+##   getLostHPAfterImmunity（累计 totalDamage，达阈值触发 atk3）+ update（totalDamage>=HP*0.2 → takeEffectAt atk3 + Gain MP）+
+##   ult（createBuff 设 ultBuff=info.PIMU + onRemoved 还原 / onAttackFrame changePeriod / finish enterActionStage(2) / canCastWithTarget ultBuff 互斥）。
+## 全用已有 hook（takeDamage 续4/getLostHPAfterImmunity 续17/update 续4/createBuff/canCastWithTarget/onAttackFrame/finish + enterActionStage 续5）。
+
+const DAMAGE_PERCENT_CAST: float = 0.2
+const STAGE_CHANGE_1: int = 1
+const STAGE_CHANGE_2: int = 2
+
+
+func _ult_can_cast_with_target(skill: Variant, target: Variant) -> Dictionary:
+	if bool(skill.caster.custom_data.get("ultBuff", false)):
+		return {"ok": false, "reason": "ult"}
+	return skill._can_cast_with_target_default(target)
+
+
+func _ult_buff_on_removed(buff: Variant) -> void:
+	var caster: Variant = buff.caster
+	if bool(caster.custom_data.get("changePeriod", false)):
+		caster.enter_action_stage_from_one_stage(STAGE_CHANGE_1)
+		caster.custom_data["changePeriod"] = false
+		caster.custom_data["ultBuff"] = false
+	buff._on_removed_default()
+
+
+func _ult_create_buff(skill: Variant, target: Variant) -> Variant:
+	var buff: Variant = skill._create_buff_default(target)
+	buff.hero_hooks["onRemoved"] = Callable(self, "_ult_buff_on_removed")
+	skill.caster.custom_data["ultBuff"] = float(buff.info.get("PIMU", 0))
+	return buff
+
+
+func _ult_on_attack_frame(skill: Variant) -> void:
+	skill._on_attack_frame_default()
+	skill.caster.custom_data["changePeriod"] = true
+
+
+func _ult_finish(skill: Variant) -> void:
+	skill._finish_default()
+	if bool(skill.caster.custom_data.get("changePeriod", false)):
+		skill.caster.enter_action_stage_from_one_stage(STAGE_CHANGE_2)
+
+
+func _hero_update(unit: Variant, dt: float) -> void:
+	unit._update_default(dt)
+	var skillatk3: Variant = unit.skills.get("BB_atk3")
+	if skillatk3:
+		var threshold: float = float(unit.attribs.get("HP", 0)) * DAMAGE_PERCENT_CAST
+		var total: float = float(unit.custom_data.get("totalDamage", 0))
+		if total >= threshold:
+			skillatk3.take_effect_at(unit.position, unit)
+			unit.set_mp(float(unit.mp) + float(skillatk3.info.get("Gain MP", 0)) * float(unit.engine.mp_bonus))   # float 不截断（源语义）
+			unit.custom_data["totalDamage"] = total - threshold
+
+
+func _get_lost_hp_after_immunity(unit: Variant, damage: float, immunity: float) -> float:
+	if unit.skills.get("BB_atk3"):
+		unit.custom_data["totalDamage"] = float(unit.custom_data.get("totalDamage", 0)) + damage
+	return BattleUnitCombat.get_lost_hp_after_immunity(damage, immunity)
+
+
+func _take_damage(unit: Variant, params: Dictionary) -> float:
+	var ult_buff: Variant = unit.custom_data.get("ultBuff", false)
+	if bool(ult_buff):
+		var source: Variant = params.get("source", null)
+		# 源 :54 直取 source.direction 无判空；GDScript 防御只判 null——全部调用方
+		# source 均传单位对象（grep 实测），旧译 `source != ""` 是 Object 与 String
+		# 比较，运行时爆 Invalid operands（怨灵 buff tick 打开大 BB 时每 0.375s 一条）。
+		var direct: int = int(source.direction) if source != null else 0
+		if direct == int(unit.direction):
+			var temp: float = float(unit.attribs.get("PIMU", 0))
+			var temp2: float = float(unit.attribs.get("MIMU", 0))
+			var ub: float = float(ult_buff)
+			unit.attribs["PIMU"] = temp - ub
+			unit.attribs["MIMU"] = temp2 - ub
+			var dmg: float = unit._take_damage_default(params)
+			unit.attribs["PIMU"] = temp
+			unit.attribs["MIMU"] = temp
+			return dmg
+	return unit._take_damage_default(params)
+
+
+func apply(hero: Variant) -> void:
+	if hero.skills.get("BB_atk3"):
+		hero.custom_data["totalDamage"] = 0.0
+	hero.hero_hooks["takeDamage"] = Callable(self, "_take_damage")
+	hero.hero_hooks["getLostHPAfterImmunity"] = Callable(self, "_get_lost_hp_after_immunity")
+	hero.hero_hooks["update"] = Callable(self, "_hero_update")
+	hero.is_action_stage_change_by_manual = true
+	var skillult: Variant = hero.skills.get("BB_ult")
+	if skillult:
+		skillult.hero_hooks["createBuff"] = Callable(self, "_ult_create_buff")
+		skillult.hero_hooks["onAttackFrame"] = Callable(self, "_ult_on_attack_frame")
+		skillult.hero_hooks["finish"] = Callable(self, "_ult_finish")
+		skillult.hero_hooks["canCastWithTarget"] = Callable(self, "_ult_can_cast_with_target")

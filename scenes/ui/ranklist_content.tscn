@@ -1,0 +1,312 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_ck3bj"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn.png" id="2_7d21r"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="3_hkicw"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_title_bg.png" id="4_ue6pq"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_bg.png" id="5_54syu"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_button_current_1.png" id="6_dotx4"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_button_current_2.png" id="7_d6v5b"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_subbutton_current_1.png" id="8_7t8dq"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_subbutton_current_2.png" id="9_ioj8p"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_button_normal_1.png" id="10_q7fne"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_button_nromal_2.png" id="11_40mho"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_subbutton_normal_1.png" id="12_cvgg5"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/ranklist/ranklist_subbutton_normal_2.png" id="13_rsxll"]
+
+[node name="RanklistContent" type="Control" unique_id=1238335870]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FrameworkBg" type="TextureRect" parent="." unique_id=988383649]
+layout_mode = 0
+offset_right = 800.0
+offset_bottom = 480.0
+mouse_filter = 2
+texture = ExtResource("1_ck3bj")
+expand_mode = 1
+
+[node name="CloseBtn" type="TextureButton" parent="." unique_id=1469326314]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.81
+offset_bottom = 73.59
+texture_normal = ExtResource("2_7d21r")
+texture_pressed = ExtResource("3_hkicw")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TitleBg" type="TextureRect" parent="." unique_id=588179571]
+layout_mode = 0
+offset_left = 186.0
+offset_top = 11.0
+offset_right = 612.0
+offset_bottom = 69.0
+mouse_filter = 2
+texture = ExtResource("4_ue6pq")
+expand_mode = 1
+
+[node name="Window" type="TextureRect" parent="." unique_id=764318684]
+layout_mode = 0
+offset_left = 39.0
+offset_top = 64.0
+offset_right = 761.0
+offset_bottom = 464.0
+mouse_filter = 2
+texture = ExtResource("5_54syu")
+expand_mode = 1
+
+[node name="Title" type="Label" parent="." unique_id=365619623]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 350.0
+offset_top = 25.0
+offset_right = 450.0
+offset_bottom = 49.0
+theme_type_variation = &"RanklistTitleLabel"
+text = "排行榜"
+
+[node name="ScrollLayer" type="ScrollContainer" parent="." unique_id=1143413557]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 249.0
+offset_top = 74.0
+offset_right = 761.0
+offset_bottom = 454.0
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="ScrollLayer" unique_id=1821828073]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TabClip" type="Control" parent="." unique_id=666084097]
+clip_contents = true
+anchors_preset = 0
+offset_left = 50.0
+offset_top = 74.0
+offset_right = 260.0
+offset_bottom = 454.0
+mouse_filter = 2
+
+[node name="TabHost" type="Control" parent="TabClip" unique_id=1937185977]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="GroupArena" type="TextureButton" parent="TabClip/TabHost" unique_id=600871779]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = -3.0
+offset_right = 137.0
+offset_bottom = 56.0
+texture_normal = ExtResource("6_dotx4")
+texture_pressed = ExtResource("7_d6v5b")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/GroupArena" unique_id=2066008652]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistGroupTabSelLabel"
+horizontal_alignment = 1
+text = "竞技场"
+
+[node name="SubPvp" type="TextureButton" parent="TabClip/TabHost" unique_id=1374248100]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 10.0
+offset_top = 49.0
+offset_right = 145.0
+offset_bottom = 108.0
+texture_normal = ExtResource("8_7t8dq")
+texture_pressed = ExtResource("9_ioj8p")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubPvp" unique_id=133203681]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabSelLabel"
+horizontal_alignment = 1
+text = "竞技场每日排名"
+
+[node name="GroupFightvalue" type="TextureButton" parent="TabClip/TabHost" unique_id=1498054303]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 101.0
+offset_right = 137.0
+offset_bottom = 160.0
+texture_normal = ExtResource("10_q7fne")
+texture_pressed = ExtResource("11_40mho")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/GroupFightvalue" unique_id=385154691]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistGroupTabLabel"
+horizontal_alignment = 1
+text = "战力"
+
+[node name="SubFullHeroGs" type="TextureButton" parent="TabClip/TabHost" unique_id=1121488021]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 153.0
+offset_right = 145.0
+offset_bottom = 212.0
+texture_normal = ExtResource("12_cvgg5")
+texture_pressed = ExtResource("13_rsxll")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubFullHeroGs" unique_id=379556899]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabLabel"
+horizontal_alignment = 1
+text = "总战力排名"
+
+[node name="SubHeroTeamGs" type="TextureButton" parent="TabClip/TabHost" unique_id=1570828185]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 200.0
+offset_right = 145.0
+offset_bottom = 259.0
+texture_normal = ExtResource("12_cvgg5")
+texture_pressed = ExtResource("13_rsxll")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubHeroTeamGs" unique_id=113034973]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabLabel"
+horizontal_alignment = 1
+text = "小队战力排名"
+
+[node name="SubHeroEvoStar" type="TextureButton" parent="TabClip/TabHost" unique_id=337945188]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 247.0
+offset_right = 145.0
+offset_bottom = 306.0
+texture_normal = ExtResource("12_cvgg5")
+texture_pressed = ExtResource("13_rsxll")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubHeroEvoStar" unique_id=613903678]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabLabel"
+horizontal_alignment = 1
+text = "英雄进化排名"
+
+[node name="GroupGuild" type="TextureButton" parent="TabClip/TabHost" unique_id=1631968096]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 148.0
+offset_right = 137.0
+offset_bottom = 207.0
+texture_normal = ExtResource("10_q7fne")
+texture_pressed = ExtResource("11_40mho")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/GroupGuild" unique_id=156175610]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistGroupTabLabel"
+text = "公会"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubArenaRealtime" type="TextureButton" parent="TabClip/TabHost" unique_id=1022241734]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 200.0
+offset_right = 145.0
+offset_bottom = 259.0
+texture_normal = ExtResource("12_cvgg5")
+texture_pressed = ExtResource("13_rsxll")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubArenaRealtime" unique_id=427317640]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabLabel"
+text = "竞技场(实时)"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubGuildActive" type="TextureButton" parent="TabClip/TabHost" unique_id=772508471]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 247.0
+offset_right = 145.0
+offset_bottom = 306.0
+texture_normal = ExtResource("12_cvgg5")
+texture_pressed = ExtResource("13_rsxll")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Label" type="Label" parent="TabClip/TabHost/SubGuildActive" unique_id=1325956771]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 21.0
+offset_right = 138.0
+offset_bottom = 45.0
+theme_type_variation = &"RanklistSubTabLabel"
+text = "公会活跃排名"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -1,0 +1,199 @@
+class_name MainButtonFactory
+extends RefCounted
+
+## 主界面入口按钮工厂（View 层 Step 13.2/13.5/press）— 照源 ui/main.lua:557 createMainButton + createMainFca。
+## 按钮 = RoundButton 容器（flat 透明 + 圆形触摸 touchCenter/touchRadius，源 getMainButtonTouchConfig）
+##       + press 光效（main_button_press.png × lightSize，按下显示，源 :592-604）
+##       + Spine 动画图标（aniType=1，源 :413）+ title 背景图（main_title_a.png，源 :608 titleres）+ titleLabel（LSTR 中文，源 :622 font 17）。
+## 从 main_scene.gd 抽出避超 400 行。坐标：源 ccp(左下) 已转 Godot(左上)，ENTRIES pos = 源中心点（CCSprite anchor 0.5）。
+
+const SPINE_DIR: String = "res://assets/spine"
+const LOOP_ACTION: String = "Loop"
+const TITLE_BG: String = "res://assets/ui/alpha/HVGA/main_title_a.png"
+const CONTENT_SCALE: float = 1.28125
+const PRESS_TEX: String = "res://assets/ui/alpha/HVGA/main_button_press.png"
+const LOCKED_ALPHA: float = 0.5
+const TITLE_FONT_SIZE: int = 17
+const TITLE_MAX_WIDTH: float = 100.0
+const TITLE_OFFSET_Y: float = 25.0
+const DEFAULT_RADIUS: float = 56.0    # 无 radius 字段的默认触摸半径
+const GapLoopAnimator = preload("res://scripts/ui/gap_loop_animator.gd")
+const RoundButton = preload("res://scripts/ui/round_button.gd")
+const FcaAnimation = preload("res://scripts/ui/fca_animation.gd")
+const AtlasSprite = preload("res://scripts/ui/atlas_sprite.gd")
+const FCA_ANI_DIR: String = "res://assets/anim_frames/effect/"   # eff_UI_*.ani FCA 序列帧目录
+# 建筑图标整体缩小系数（照源 ui/main.lua:404 FCA_SCALE=0.9，commit f7ac295 2026-08-21
+# "主界面建筑图标整体缩小10%"）。源 createMainFca:419 setScale((v.scale or 1)*FCA_SCALE) 对
+# Spine 与 FCA 两种 node 都生效（Node::setScale），故 Godot 端 _add_spine/_add_fca 双路径都乘。
+const FCA_SCALE: float = 0.9
+# 按钮内三层显式 z（press 光效最底 / Spine 骨架中层 / title 标签最上，源 createMainButton
+# add 顺序语义）。Spine 附件带 slot 索引 z（骨架内 mesh/region 按 slot 序全序，spine_skeleton.gd），
+# title 恒最高使标签不被附件盖住（2026-09-12 回归：附件 z 盖标签）。z_as_relative 为**全局累加
+# 排序**（effective z 沿父链累加后跨整 canvas 比较）——分层禁用负值：骨架压负区会被 z=0 的
+# parallax 背景层整层盖住（建筑全灭，同日二连回归实证）。
+# TITLE_Z 双向约束（2026-09-12 三连回归：1024 越层致建筑标签浮在所有弹窗上，用户实机反馈）：
+#   下界 > SPINE_Z + 全资源最大 slot 数（实测 21，eff_UI_Main_Pve）= 23——低于则标签被附件盖住；
+#   上界 < PopWindow.Z_BASE(100)——高于则主城标签压过全部弹窗（PopWindow 栈 z=100/200/…）。
+#   附件最高 effective = 2+21 = 23，title 取 64 居安全区正中（余量到 63/99）。
+const PRESS_Z: int = 1
+const SPINE_Z: int = 2
+const TITLE_Z: int = 64
+
+
+## 建入口按钮（照源 createMainButton + createMainFca）。e = ENTRIES 条目，on_pressed = 点击回调，is_locked = 未解锁灰显。
+static func make_entry(e: Dictionary, on_pressed: Callable, is_locked: bool) -> Button:
+	var btn := RoundButton.new()
+	# 圆形触摸（照源 touchCenter/touchRadius）：size = 2×radius（方形），pos 中心对齐源 pos
+	var radius: float = float(e.get("radius", DEFAULT_RADIUS))
+	btn.size = Vector2(radius * 2.0, radius * 2.0)
+	btn.position = Vector2(float(e["pos"][0]) - radius, float(e["pos"][1]) - radius)
+	var touch: Array = e.get("touch", [0, 0])
+	btn.touch_center = Vector2(float(touch[0]), float(touch[1]))
+	# flat 透明底（照源 main_scene 无按钮底纹，icon=Spine，title=独立 TextureRect）
+	# 走 GhostButton 变体（default_theme.tres：normal/hover/pressed/focus 全 StyleBoxEmpty）
+	btn.theme_type_variation = &"GhostButton"
+	if is_locked:
+		btn.modulate.a = LOCKED_ALPHA
+	btn.pressed.connect(on_pressed)
+	_add_press(btn, e)   # 光效最底层（源 press z=0，先 addChild 在 Spine/title 之下）
+	var sk: Node2D = _add_spine(btn, e)
+	_add_title(btn, String(e["title"]), is_locked)
+	_add_gap_loop(btn, sk, e)
+	return btn
+
+
+# press 光效（照源 createMainButton:592-604）。e["light"] = [lightPos_x, lightPos_y, lightSize_w, lightSize_h]（源 mainres.lightPos + lightSize）。
+# 中心 = 按钮中心 + lightPos（源 y 上 → Godot y 下，翻 Y），尺寸 = lightSize × scale（源 setScale = lightSize*scale/size）。
+# 默认隐藏，button_down 显示 / button_up 隐藏（源 btRegisterClick 按下 ui[key.."_press"]:setVisible(true)）。
+static func _add_press(btn: Button, e: Dictionary) -> void:
+	if not e.has("light"):
+		return
+	var tex: Texture2D = load(PRESS_TEX)
+	if tex == null:
+		return
+	var l: Array = e["light"]
+	var sk_scale: float = float(e.get("scale", 1.0))
+	var press_size: Vector2 = Vector2(float(l[2]) * sk_scale, float(l[3]) * sk_scale)
+	var press := TextureRect.new()
+	press.texture = tex
+	press.expand_mode = TextureRect.EXPAND_IGNORE_SIZE   # minimum 不让纹理撑大 size（源 CCSprite setScale 非等比缩放）
+	press.size = press_size
+	# 中心 = btn 中心 + lightPos（翻 Y）；左上 = 中心 - size/2
+	press.position = Vector2(btn.size.x * 0.5 + float(l[0]) - press_size.x * 0.5, btn.size.y * 0.5 - float(l[1]) - press_size.y * 0.5)
+	press.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	press.z_index = PRESS_Z
+	press.visible = false
+	btn.add_child(press)
+	btn.button_down.connect(func() -> void: press.visible = true)
+	btn.button_up.connect(func() -> void: press.visible = false)
+
+
+# Spine 动画图标（照源 ui/main.lua:413 createFcaNode aniType=1 + setAction Loop）。
+# load_skeleton 失败（starshop Shop_Star spine/ 无资源，源走 FCA）静默降级（返 null）。
+static func _add_spine(btn: Button, e: Dictionary) -> Node2D:
+	# 静态图入口（2026-10-08 ch203 冰封王座，Comfy 生成 PNG 无 Spine/FCA 资产）：
+	# e["icon"] = 贴图路径 → TextureRect 居中，z 同 SPINE_Z。建筑动画体系只认
+	# spine/FCA（res 字段），项目新增入口走 icon 字段静态图（受控增强）。
+	if e.has("icon"):
+		var tex: Texture2D = load(String(e["icon"])) as Texture2D
+		if tex != null:
+			var icon := TextureRect.new()
+			icon.texture = tex
+			icon.z_index = SPINE_Z
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			var icon_scale: float = float(e.get("scale", 1.0)) * FCA_SCALE
+			# 图标占满按钮区（radius×2）而非贴图原始尺寸（贴图 512² 直用会溢出
+			# 140² 按钮区；KEEP_ASPECT_CENTERED 保证不变形，短边贴合留边）。
+			var icon_sz: Vector2 = btn.size * icon_scale
+			icon.size = icon_sz
+			icon.position = (btn.size - icon_sz) * 0.5
+			btn.add_child(icon)
+			return null   # 静态图无待机循环动画（_add_gap_loop 需 Node2D 骨架，跳过）
+	if not e.has("res"):
+		return null
+	var sk_scale: float = float(e.get("scale", 1.0))
+	var sk := SpineSkeleton.new()
+	sk.z_index = SPINE_Z
+	# （0.39 仅 LegendAminationEffect/.abc 自家系统用；createFcaNode:581 Type_Spine 走 createAnimation，:589 FCA 走 LegendAminationEffect）。
+	# 净 scale = v.scale × FCA_SCALE(0.9)（照源 main.lua:419 setScale((v.scale or 1)*FCA_SCALE)）；
+	# load_skeleton:37 自动翻 y 并保留 |scale|（0.9v, 0.9v) → (0.9v, -0.9v)）。
+	sk.scale = Vector2(sk_scale * FCA_SCALE, sk_scale * FCA_SCALE)
+	btn.add_child(sk)
+	if sk.load_skeleton(SPINE_DIR + "/" + String(e["res"]), String(e["res"])):
+		sk.position = Vector2(btn.size.x * 0.5, btn.size.y * 0.5)   # Button 中心 = 源按钮 pos（CCSprite 中心点）
+		sk.play(LOOP_ACTION, true)
+		return sk
+	sk.queue_free()
+	# Spine 资源缺 → FCA fallback（源 aniType 未传走 FCA .ani，如 Shop_Star 星际商店）
+	return _add_fca(btn, String(e["res"]), sk_scale)
+
+
+# FCA 序列帧 fallback（Spine 资源缺的入口，照源 createFcaNode aniType 未传路径）。
+static func _add_fca(btn: Button, res: String, sk_scale: float) -> Node2D:
+	var atlas := AtlasSprite.new()
+	if not atlas.load_atlas_from_ani(FCA_ANI_DIR + res + ".ani"):
+		# AtlasSprite extends RefCounted：queue_free() 无效（RefCounted 无此方法），
+		# 需 unload() 释放 _part_texture_cache 持有的 ImageTexture，引用计数归零自动 GC。
+		atlas.unload()
+		return null
+	var fca := FcaAnimation.new()
+	if not fca.load_from_ani("effect/" + res, atlas):
+		atlas.unload()   # 失败分支 fca 未持有 atlas，显式释放纹理缓存
+		fca.queue_free()
+		return null
+	# 非 CC 标准覆盖）。_create_sprites 已设 fca.scale=_coord_scale(0.39)，此处 ×v.scale×FCA_SCALE 叠加
+	# （照源 main.lua:419 setScale((v.scale or 1)*FCA_SCALE)，FCA node 同样被 setScale）。
+	# net a/b/c/d = (0.39×v.scale×0.9)/0.39 × 原始 = v.scale×0.9×原始（与源 LegendAnimation batchNode
+	# 链一致：readFrames ÷0.39 + batchNode ×0.39 抵消，净系数全在外层 setScale；避反向 ×1/0.39 放大 2.05×）。
+	fca.scale = fca.scale * sk_scale * FCA_SCALE
+	btn.add_child(fca)
+	fca.position = Vector2(btn.size.x * 0.5, btn.size.y * 0.5)
+	fca.play(LOOP_ACTION, true)
+	return fca
+
+
+# gap/loop 间隙动画（照源 createMainFca:446-471）。e["gap"] = [gap_min, gap_max, loop_gap, loop_times_min, loop_times_max]。
+# starshop spine/ 无资源 sk=null → 不挂 animator（数据照源，运行时降级）。
+static func _add_gap_loop(btn: Button, sk: Node2D, e: Dictionary) -> void:
+	if sk == null or not (sk is SpineSkeleton) or not e.has("gap"):
+		return   # FCA(FcaAnimation)自带 Loop 动画，不挂 gap_loop
+	var g: Array = e["gap"]
+	var anim := GapLoopAnimator.new()
+	btn.add_child(anim)
+	anim.setup(sk, float(g[0]), float(g[1]), float(g[2]), int(g[3]), int(g[4]))
+
+
+# title 背景图 + 标题文字（照源 createMainButton:607-630 titleres=main_title_a.png + label (60,18) font 17）。
+# title 中心 = 按钮中心 x，下方 25（源 createMainFca:443 pos.y - 25 → Godot y 下 +25）。
+# is_locked：未解锁 disable 态（源 main.lua:1149 refreshButtons + 1166/1170 ui_main_button_disable
+# fontinfo + main_title_disable 纹理 + Label 色切）。本项目无 main_title_disable 纹理资源，
+# 按「资源缺则用 modulate 灰显 Color(0.5,0.5,0.5) 替代纹理切换」（任务红线 fallback 范式）：
+# title TextureRect + Label 整体 modulate 灰化，叠加 LOCKED_ALPHA 按钮半透明。
+static func _add_title(btn: Button, title_text: String, is_locked: bool = false) -> void:
+	var tex: Texture2D = load(TITLE_BG)
+	if tex == null:
+		return
+	# title 源 createSprite(br.titleres) 无 fix_size → 显示=纹理/CS（[[content-scale-factor]]）
+	var display_size := TexDisplaySize.display_size(TITLE_BG)
+	var title := TextureRect.new()
+	title.texture = tex
+	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	title.size = display_size
+	title.z_index = TITLE_Z   # 标签恒在骨架附件（SPINE_Z+slot_idx）之上
+	title.position = Vector2(btn.size.x * 0.5 - display_size.x * 0.5, btn.size.y * 0.5 + TITLE_OFFSET_Y - display_size.y * 0.5)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 未解锁灰显（源 main_title_disable 纹理 fallback：无 disable 纹理资源，整体 modulate 灰化替代）
+	if is_locked:
+		title.modulate = Color(0.5, 0.5, 0.5)
+	btn.add_child(title)
+	var label := Label.new()
+	label.text = title_text
+	label.position = Vector2.ZERO
+	label.size = title.size
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)   # Label 字号主题项名是 font_size（"font" 是 Font 类型项，写错键不生效）
+	label.clip_text = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.add_child(label)

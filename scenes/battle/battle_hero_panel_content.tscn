@@ -1,0 +1,80 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/herobucket.png" id="1_bucket"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/portraitredmask.png" id="2_redmask"]
+
+; 源直译（hero_panel.lua:8-78，2026-08-28 战斗域批次）：卡 node 原点=Cocos 卡内 (0,0)，
+; Godot 组件 120×126、卡原点映射 (60,126)。portrait 中心卡内 (0,70)→组件 (60,56)；
+; hp 条中心 (0,21)→(60,105)、mp 条中心 (0,8)→(60,118)——两条叠在卡内底部（VBox 仅
+; PortraitZone 占高，条 Zone 0 高+gd 负 position 回叠）；herobucket（ed.createSprite÷CS
+; 140×148px→109.3×115.5）中心 (-1,68)→组件 (59,72)，挂 Host 内 (51,54)+scale 0.7805。
+; 旧 VBox 纵排（头像区→条区→条区 separation 7）条在卡外+桶未÷CS 偏大 1.28× 本批根修。
+[node name="BattleHeroPanelContent" type="VBoxContainer"]
+layout_mode = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+; 头像区：portrait 104×104 + frame 109×109，Zone 110×126 容纳（含桶下沿+条区）。
+[node name="PortraitZone" type="Control" parent="."]
+custom_minimum_size = Vector2(110, 126)
+layout_mode = 2
+mouse_filter = 2
+
+; PortraitHost：portrait 中心对位组件 (60,56)（104 半宽 52 → offset (8,4)）。
+[node name="PortraitHost" type="Control" parent="PortraitZone"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 8.0
+offset_top = 4.0
+mouse_filter = 2
+
+; FrameBtn 实测 size=106×106 原尺寸（ignore_texture_size=false+stretch_mode=KEEP，贴图
+; hero_icon_frame 106×106 撑开 rect）= 源 CCMenuItemImage 106 原尺寸口径一致（2026-08-28
+; 头像÷CS 专项实锤：走查「100 vs 106」系照本 offset 数字 100 误读，运行时即 106，勿改）。
+[node name="FrameBtn" type="TextureButton" parent="PortraitZone/PortraitHost"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 102.0
+offset_bottom = 102.0
+
+; Redmask 定位 frame 贴图中心 (53,53)（源 hero_panel.lua:73 setPosition(anchorPointInPoints)）。
+[node name="Redmask" type="Sprite2D" parent="PortraitZone/PortraitHost/FrameBtn"]
+unique_name_in_owner = true
+visible = false
+position = Vector2(53, 53)
+texture = ExtResource("2_redmask")
+
+; Container herobucket ÷CS（140×148px→109.3×115.5），中心=portrait 中心+(-1,+2)（源 ccp(-1,-2) y 翻转）。
+[node name="Container" type="Sprite2D" parent="PortraitZone/PortraitHost"]
+position = Vector2(51, 54)
+scale = Vector2(0.7805, 0.7805)
+z_index = -2
+texture = ExtResource("1_bucket")
+
+; HP 条区：0 高（VBox 占位不占高），条由 gd position 回叠卡内 (60,105)。
+[node name="HpBarZone" type="Control" parent="."]
+custom_minimum_size = Vector2(119, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="HpBarHost" type="Control" parent="HpBarZone"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+mouse_filter = 2
+
+; MP 条区：0 高，条由 gd position 回叠卡内 (60,118)。
+[node name="MpBarZone" type="Control" parent="."]
+custom_minimum_size = Vector2(119, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="MpBarHost" type="Control" parent="MpBarZone"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+mouse_filter = 2

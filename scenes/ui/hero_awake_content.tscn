@@ -1,0 +1,75 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/shine.png" id="1_shine"]
+
+; hero_awake 觉醒展示弹窗静态树（批 1 Task 4，2026-08-15）。照源 ui/popwindow/
+; popheroawake.lua create(:88-162) ui_info(:109-145) 直译；坐标 cocos(800x480 左下)
+; → godot(800x480 左上) via (x, 480-y)；显示尺寸 = 纹理像素 ÷ CS(1.28125)。
+; 2026-09-09 viewport 口径清偿：Light/Fca 宿主三节点 960 口径 (480,x) 残留迁 800
+;（召唤链复用本弹窗时实拍暴露卡片偏右/光效截断；BgRect 当年已是 800 口径）。
+; 树序 = 源 z 序：bg(0)/light(0) < bubble FCA(0) < cardui(1) < card FCA(10)。
+; bg 三色贴图（tavern_get_hero_bg_{red,green,blue}.jpg）由 panel 按 Unit.Bg Color
+; fill（照源 :102-107 bg_res[color] 运行时选图，源即动态）；卡实例与 FCA 工厂节点
+; 由 panel fill 挂入宿主（复用 hero_detail_card_tab.tscn / FcaAnimation 工厂）。
+
+[node name="HeroAwakeContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 底板（源 :110-120 Sprite tavern_get_hero_bg 512x384 at (400,240) 中心锚）：
+; 2026-09-10 四轮：TextureConfig 条目 tavern_get_hero_bg_{red,green,blue} Prescaled=true
+; ContentScale=2 → 显示=512÷CS×2=799.2×599.4 全屏宽（上轮漏查条目按 400×300 致
+; 用户实机「天蓝色背景没有全屏」）；中心 (400,240) 保持，上下溢出 60px 画屏外照源
+; viewport 裁剪；modulate a=0 照源 config opacity=0（CCFadeIn(0.4) 起点）
+[node name="BgRect" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 0.39
+offset_top = -59.71
+offset_right = 799.61
+offset_bottom = 539.71
+modulate = Color(1, 1, 1, 0)
+expand_mode = 1
+mouse_filter = 2
+
+; 光圈（源 :121-131 Sprite shine.png 139x136 at (400,550) 中心锚 scale=6）：
+; 中心 _g(400,550)=(480,10)；显示尺寸=像素÷CS → Sprite2D scale=6/CS=4.683
+; （Task 3 mark 59/CS*0.8 同口径）；a=0 照源 opacity=0（淡入后 RotateBy 5s×3）
+[node name="LightSprite" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(400, -70)
+scale = Vector2(4.683, 4.683)
+modulate = Color(1, 1, 1, 0)
+texture = ExtResource("1_shine")
+
+; 气泡 FCA 宿主（源 showCardui :26-33 createFcaNode("eff_UI_tavern_bubble")
+; at (400,240) scale=1.5）→ _g=(480,320)；FcaAnimation 工厂由 panel 挂入（动态
+; 资源）；树序在 CardHost 前 = 源 z0 < cardui z1
+[node name="FcaBubbleHost" type="Node2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(400, 240)
+scale = Vector2(1.5, 1.5)
+
+; 卡牌宿主（源 :132-143 cardui readhero 卡容器 at (400,240) z=1）：
+; 复用 hero_detail_card_tab.tscn 实例由 panel fill 挂入
+[node name="CardHost" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+; 卡面 FCA 宿主（源 showCardui :38-44 createFcaNode("eff_UI_tavern_card_<color>")
+; at (400,240) z=10 scale=1.5）：树序在 CardHost 后 = 源 z10 > cardui z1
+[node name="FcaCardHost" type="Node2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(400, 240)
+scale = Vector2(1.5, 1.5)

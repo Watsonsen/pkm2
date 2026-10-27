@@ -1,0 +1,295 @@
+extends GutTest
+# Phase 5.2 readequip_data 装备查询测试（2026-07-02）。
+# 验 ReadequipData.get_hero_item + get_equip_gs/attrib。
+
+var cm: ConfigManager
+
+
+func before_all() -> void:
+	cm = ConfigManager.new()
+	cm.load_all()
+
+
+func test_get_hero_item_empty() -> void:
+	var hero := HeroInstance.new(1, 1, 1)   # equip_slots 默认 [0,0,0,0,0,0]
+	assert_eq(ReadequipData.get_hero_item(hero, 0), 0, "默认空槽 → 0")
+
+
+func test_get_hero_item_set() -> void:
+	var hero := HeroInstance.new(1, 1, 1)
+	hero.equip_slots[0] = 100
+	assert_eq(ReadequipData.get_hero_item(hero, 0), 100, "slot 0 设 item_id=100 → 100")
+
+
+func test_get_hero_item_invalid_slot() -> void:
+	var hero := HeroInstance.new(1, 1, 1)
+	assert_eq(ReadequipData.get_hero_item(hero, 99), 0, "越界 slot → 0")
+	assert_eq(ReadequipData.get_hero_item(hero, -1), 0, "负 slot → 0")
+
+
+func test_get_hero_item_null() -> void:
+	assert_eq(ReadequipData.get_hero_item(null, 0), 0, "hero null → 0")
+
+
+func test_get_equip_gs() -> void:
+	# equip id=101 +GS=2.7
+	assert_almost_eq(ReadequipData.get_equip_gs(101, cm), 2.7, 0.01, "equip 101 +GS=2.7")
+
+
+func test_get_equip_attrib() -> void:
+	# equip id=101 +AGI=1
+	assert_almost_eq(ReadequipData.get_equip_attrib(101, "+AGI", cm), 1.0, 0.01, "equip 101 +AGI=1")
+	assert_eq(ReadequipData.get_equip_attrib(99999, "+AGI", cm), 0.0, "不存在 item → 0")
+
+
+# 源 getEquipLevelExp :244-260 — Enhancement[Quality] le/ml。
+func test_get_equip_level_exp() -> void:
+	var info: Dictionary = ReadequipData.get_equip_level_exp(101, cm)
+	var ml: int = int(info["ml"])
+	var le: Array = info["le"]
+	# equip 101 Quality=1 → Enhancement[1] Max Level=0（品质 1 不可强化，数据特性）
+	assert_eq(ml, 0, "equip 101 Quality=1 → Enhancement[1] Max Level=0（品质 1 不可强化）")
+	assert_eq(le.size(), ml, "le 数量 = ml")
+
+
+# 源 getEquipLevel :262-278 — exp=0 → level 0；exp 大 → level ml。
+func test_get_equip_level() -> void:
+	var r0: Dictionary = ReadequipData.get_equip_level(101, 0.0, cm)
+	assert_eq(int(r0["level"]), 0, "exp=0 → level 0（未强化）")
+	var ml: int = int(ReadequipData.get_equip_level_exp(101, cm)["ml"])
+	var rmax: Dictionary = ReadequipData.get_equip_level(101, 99999.0, cm)
+	assert_eq(int(rmax["level"]), ml, "exp 大 → level ml")
+
+
+# 源 getHeroEquipgs :50-65 — sum(+GS * level)。无装备→0；有装备未强化→0（level 0）。
+func test_get_hero_equip_gs() -> void:
+	var hero := HeroInstance.new(1, 1, 1)
+	assert_eq(ReadequipData.get_hero_equip_gs(hero, cm), 0.0, "无装备 → 0")
+	hero.equip_slots[0] = 101   # Quality=1 → ml=0 → level 0
+	assert_eq(ReadequipData.get_hero_equip_gs(hero, cm), 0.0, "equip 101（品质1不可强化）→ gs 0")
+	hero.equip_slots.clear()
+	hero.equip_slots = []   # 测 sum 逻辑（无装备）
+
+
+# hero.equip_exp → exp_map 桥接。
+func test_get_exp_map_from_hero() -> void:
+	var hero := HeroInstance.new(1, 1, 1)
+	hero.equip_exp[0] = 50.0
+	hero.equip_exp[2] = 30.0
+	var m: Dictionary = ReadequipData.get_exp_map_from_hero(hero)
+	assert_eq(float(m[0]), 50.0, "slot 0 exp=50")
+	assert_eq(float(m[2]), 30.0, "slot 2 exp=30")
+	assert_eq(float(m.get(1, -1.0)), 0.0, "slot 1 默认 0")
+
+
+# 装备强化（照源 ui/equipstrengthen + local_server：材料 Enhance Value 经验 + Unit Price 金币双消耗）。
+# 品质 1 装备 Enhancement[1] Max Level=0 不可强化。
+func test_enhance_equip_quality1_fails() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	hero.equip_slots[0] = 101   # Quality=1 → ml=0
+	assert_eq(EquipCraftManager.enhance_equip(pd, iid, 0, {101: 1}), false, "品质 1 装备不可强化（ml=0）")
+
+
+# 强化成功：材料 Enhance Value 经验累积 + 扣 Unit Price×exp 金币 + 扣材料（照源 local_server:1436-1443）。
+func test_enhance_equip_accumulates_exp() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	pd.hero_manager.add_money(100000)
+	pd.add_item(target_id, 10)
+	var exp_before := float(hero.equip_exp[0])
+	assert_eq(EquipCraftManager.enhance_equip(pd, iid, 0, {target_id: 1}), true, "强化成功")
+	assert_true(float(hero.equip_exp[0]) > exp_before, "exp 累积增加")
+	assert_eq(int(pd.items.get(target_id, 0)), 9, "材料扣 1")
+
+
+# 材料不足 → false，不扣材料/金币（照源材料校验前置）。
+func test_enhance_equip_insufficient_material_fails() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	pd.hero_manager.add_money(100000)
+	assert_eq(EquipCraftManager.enhance_equip(pd, iid, 0, {target_id: 1}), false, "材料不足 → false")
+	assert_eq(int(pd.items.get(target_id, 0)), 0, "不扣材料")
+
+
+# 辅助：找 Equip 表 Quality>=2 且 Enhancement Max Level>0 的 id（可强化）。
+func _find_enhanceable() -> int:
+	for tid in [102, 111, 191, 242]:
+		if cm.has_entry(&"Equip", tid):
+			var q := int(cm.get_raw_table(&"Equip").get(str(tid), {}).get("Quality", 0))
+			if q >= 2 and int(cm.get_raw_table(&"Enhancement").get(str(q), {}).get("Max Level", 0)) > 0:
+				return tid
+	return 102
+
+
+# 装备穿戴 wear_equip（照源 main.lua:1750：从 hero_equip[tid][rank] 查应穿装备，不传 item_id/不扣背包）。
+func test_wear_equip() -> void:
+	var mgr := HeroManager.new(cm)
+	var iid: int = mgr.add_hero(1)
+	var hero: HeroInstance = mgr.get_hero(iid)
+	# Coco rank1 slot0 → hero_equip[1][1]["Equip1 ID"]=102
+	assert_eq(mgr.wear_equip(iid, 0), true, "slot 0 穿戴（查 hero_equip 表）")
+	assert_eq(int(hero.equip_slots[0]), 102, "Coco rank1 slot0 → equip 102")
+	assert_eq(mgr.wear_equip(iid, 99), false, "越界 slot → false")
+
+
+# get_description（照源 readequip.getDescription:74-130）：组合属性描述行（"力量 +100"）。
+func test_get_description_returns_att_rows() -> void:
+	var equip_id := 0
+	for tid in cm.get_raw_table(&"Equip"):
+		var row: Dictionary = cm.get_raw_table(&"Equip").get(tid, {})
+		if float(row.get("STR", 0)) != 0.0:
+			equip_id = int(tid)
+			break
+	assert_gt(equip_id, 0, "有 STR 属性的装备存在")
+	var rows := ReadequipData.get_description(equip_id, 0, cm)
+	assert_gt(rows.size(), 0, "get_description 返属性行")
+	var first := rows[0] as Dictionary
+	assert_true(String(first.get("att", "")).length() > 0, "首行 att 描述非空")
+
+
+# ===== 第三十四轮 Step 5 钻石一键满级（照源 getFastStrenCost:1294 + upFastStren:701）=====
+
+# 源 getFastStrenCost:1294-1304 exp=0 → up × Σ le（当前级全部 + 后续完整级）。
+func test_get_fast_stren_cost_unenchanted() -> void:
+	var target_id := _find_enhanceable()
+	var q := int(cm.get_raw_table(&"Equip").get(str(target_id), {}).get("Quality", 0))
+	var up := float(cm.get_raw_table(&"Enhancement").get(str(q), {}).get("One-Click Unit Price", 0))
+	var le: Array = ReadequipData.get_equip_level_exp(target_id, cm)["le"]
+	var total: float = 0.0
+	for v in le:
+		total += float(v)
+	var expected: int = int(up * total)
+	assert_eq(ReadequipData.get_fast_stren_cost(target_id, 0.0, cm), expected, "exp=0 → up×总经验")
+
+
+# 满级 exp → cost=0（me-e=0 + 后续遍历空）。
+func test_get_fast_stren_cost_maxed_zero() -> void:
+	var target_id := _find_enhanceable()
+	assert_eq(ReadequipData.get_fast_stren_cost(target_id, 999999.0, cm), 0, "满级 → cost 0")
+
+
+# enhance_equip_to_max 成功：扣钻石 + equip_exp 设满级（照源 upFastStren op_type=2）。
+func test_enhance_equip_to_max_success() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	pd.add_diamond(999999)
+	var dia_before: int = pd.diamond
+	assert_eq(EquipCraftManager.enhance_equip_to_max(pd, iid, 0), true, "钻石满级成功")
+	var le: Array = ReadequipData.get_equip_level_exp(target_id, cm)["le"]
+	var total: float = 0.0
+	for v in le:
+		total += float(v)
+	assert_eq(float(hero.equip_exp[0]), total, "equip_exp 设为满级总经验")
+	assert_true(pd.diamond < dia_before, "钻石消耗")
+
+
+# 钻石不足 → false（源 _rmb < rmbCost toRecharge）。
+func test_enhance_equip_to_max_no_diamond() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	assert_eq(EquipCraftManager.enhance_equip_to_max(pd, iid, 0), false, "钻石 0 → false")
+
+
+# 已满级 → false（源 checkMaxLevel）。
+func test_enhance_equip_to_max_max_level_blocked() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	hero.equip_exp[0] = 999999   # 满级
+	pd.add_diamond(999999)
+	assert_eq(EquipCraftManager.enhance_equip_to_max(pd, iid, 0), false, "满级 → false")
+
+
+# ===== 第九轮 A1：enhance_equip 金币按满级截断后经验算（源 ui/equipstrengthen.lua:512-514）=====
+# 源 :512 target=min(targetExp, 满级上限)，:514 cost=单价×(target-ori)。
+# 玩家放超量材料（add_exp > max_exp - cur_exp）时，cost 必按截断后经验算，否则多扣金币。
+func test_enhance_equip_cost_truncated_near_max() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	var q := int(cm.get_raw_table(&"Equip").get(str(target_id), {}).get("Quality", 0))
+	var unit_price := float(cm.get_raw_table(&"Enhancement").get(str(q), {}).get("Unit Price", 0))
+	var le: Array = ReadequipData.get_equip_level_exp(target_id, cm)["le"]
+	var max_exp: float = 0.0
+	for v in le:
+		max_exp += float(v)
+	var gap: float = 10.0
+	var cur_exp: float = max_exp - gap   # 差 10 经验满级
+	hero.equip_exp[0] = cur_exp
+	pd.hero_manager.add_money(1000000)
+	pd.add_item(target_id, 9999)   # 放超量材料（add_exp 远超 gap）
+	var gold_before: int = pd.hero_manager.gold
+	assert_eq(EquipCraftManager.enhance_equip(pd, iid, 0, {target_id: 9999}), true, "超量材料强化成功")
+	var consumed: int = gold_before - pd.hero_manager.gold
+	assert_eq(consumed, int(unit_price * gap), "cost 按截断后经验算（源 :512-514 target=min，非 × add_exp）")
+	assert_eq(float(hero.equip_exp[0]), max_exp, "最终经验 = 满级上限（不溢出）")
+
+
+# 边界：cur_exp 等于 max_exp 时 enhance_equip 直接 false（已满级守卫，源 checkMaxLevel）。
+func test_enhance_equip_at_max_returns_false() -> void:
+	var pd := PlayerData.new(cm)
+	var iid: int = pd.hero_manager.add_hero(1)
+	var hero: HeroInstance = pd.hero_manager.get_hero(iid)
+	var target_id := _find_enhanceable()
+	hero.equip_slots[0] = target_id
+	var le: Array = ReadequipData.get_equip_level_exp(target_id, cm)["le"]
+	var max_exp: float = 0.0
+	for v in le:
+		max_exp += float(v)
+	hero.equip_exp[0] = max_exp   # 已满级
+	pd.hero_manager.add_money(1000000)
+	pd.add_item(target_id, 10)
+	var gold_before: int = pd.hero_manager.gold
+	assert_eq(EquipCraftManager.enhance_equip(pd, iid, 0, {target_id: 1}), false, "已满级 → false（守卫前置）")
+	assert_eq(pd.hero_manager.gold, gold_before, "失败不扣金币")
+
+
+# ── 23 阶卷轴详情 fallback（2026-10-12 根修「23 阶物品无装备详情」）──
+# 8 件 23 阶卷轴（443-464）源 2.0 补丁数据缺 Description 且属性全 0 → 详情属性区空白；
+# 受控偏离照 12 阶"可以合成 XXX"模式从 Equipcraft 反查生成。
+
+# 23 阶卷轴：无属性 rows → fallback 反查配方生成"可以合成"+产物名。
+func test_scroll_compose_fallback_23reel() -> void:
+	var rows: Array = ReadequipData.get_description(443, 0, cm)
+	assert_eq(rows.size(), 1, "443 海军勋章卷轴 fallback 1 行")
+	assert_eq(String(rows[0]["att"]), "可以合成正义风衣", "文案=模板+Equipcraft[442] 产物名")
+	# 8 件 23 阶卷轴全生效
+	for eid in [443, 446, 449, 452, 455, 458, 461, 464]:
+		var r: Array = ReadequipData.get_description(eid, 0, cm)
+		assert_gt(r.size(), 0, "卷轴 %d 详情非空" % eid)
+		assert_true(String(r[0]["att"]).begins_with("可以合成"), "卷轴 %d 文案前缀" % eid)
+
+
+# fallback 不误伤：装备属性行走原逻辑；12 阶卷轴 Description 分支（equipboard 层）不受影响，
+# get_description 直接调用时 fallback 同样给出合理文案（非空、可合成语义）。
+func test_scroll_fallback_no_side_effect() -> void:
+	var equip_rows: Array = ReadequipData.get_description(442, 0, cm)
+	assert_eq(equip_rows.size(), 3, "442 装备属性 3 行不走 fallback")
+	assert_true(String(equip_rows[0]["att"]).begins_with("力量"), "装备属性行内容不变")
+	var old_reel: Array = ReadequipData.get_description(114, 0, cm)
+	assert_eq(String(old_reel[0]["att"]), "可以合成智力挂件", "12 阶卷轴 fallback 与源 Description 文案等义")
+
+
+# 非 Equipcraft 组件不触发 fallback（追节 23 阶材料改 PARTS 后判定与 Category 解耦）：
+# 魂石/碎片走 Fragment 表非合成组件，反查不中自然为空。
+func test_scroll_fallback_component_only() -> void:
+	var stone: Array = ReadequipData.get_description(466, 0, cm)
+	assert_true(stone.is_empty(), "魂石（Fragment 表体系非 Equipcraft 组件）不进 fallback")

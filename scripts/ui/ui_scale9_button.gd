@@ -1,0 +1,82 @@
+class_name UiScale9Button
+extends RefCounted
+
+## 通用 Scale9 功能按钮工厂（照源 Scale9Sprite + press mask + Label）。
+## Godot Button + StyleBoxTexture（texture_margin 九宫格）+ pressed 切 mask stylebox。
+## capInsets CCRectMake(x,y,w,h) → StyleBoxTexture texture_margin（垂直翻转换算，按纹理尺寸算 right/top）。
+## Button 自带 pressed 信号 + 文字居中（照源 ok_label）。配套 UiButton（TextureButton 整图 close/动作）。
+## 适用：合成/领取/确认/重置等 Scale9 功能按钮（herodetail-upgrade 系列）。capInsets 各按钮不同须照源传。
+
+
+# Scale9 功能按钮（左上定位）。cap_insets = Rect2(x,y,w,h) 对应源 CCRectMake(x,y,w,h)。
+static func make(res_normal: String, res_pressed: String, top_left: Vector2, size: Vector2, cap_insets: Rect2, label_text: String = "", label_color: Color = Color.WHITE) -> Button:
+	var btn := Button.new()
+	btn.position = top_left
+	btn.size = size
+	_apply_style(btn, res_normal, res_pressed, cap_insets)
+	if not label_text.is_empty():
+		var lbl := Label.new()
+		lbl.text = label_text
+		lbl.size = btn.size
+		lbl.position = Vector2.ZERO
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.theme_type_variation = &"BtnLabel"
+		if label_color != Color.WHITE:
+			lbl.add_theme_color_override("font_color", label_color)
+		btn.add_child(lbl)
+	return btn
+
+
+# 中心定位版（源 anchor 0.5,0.5，如 fragmentcompose ok ccp(145,45) → make_centered 传中心）。
+static func make_centered(res_normal: String, res_pressed: String, center_pos: Vector2, size: Vector2, cap_insets: Rect2, label_text: String = "", label_color: Color = Color.WHITE) -> Button:
+	return make(res_normal, res_pressed, center_pos - size * 0.5, size, cap_insets, label_text, label_color)
+
+
+# Apply Scale9 StyleBox + Label overrides 到已存在 Button（位置/size 在 .tscn 静态化的场景）。
+# 与 make() 区别：make() 创建新 Button 并设 position/size；apply_with_label() 接受 .tscn 已声明的
+# Button（普通 Button 无九宫格图），仅套 normal/hover/pressed stylebox + label color/outline。
+# 用于 procedural→.tscn 重构：位置可视化在 .tscn 调，运行时补九宫格视觉（参照 hero_detail 范式）。
+static func apply_with_label(btn: Button, res_normal: String, res_pressed: String, cap_insets: Rect2, label_text: String = "", label_color: Color = Color.WHITE) -> void:
+	_apply_style(btn, res_normal, res_pressed, cap_insets)
+	if not label_text.is_empty():
+		var lbl := Label.new()
+		lbl.text = label_text
+		lbl.size = btn.size
+		lbl.position = Vector2.ZERO
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.theme_type_variation = &"BtnLabel"
+		if label_color != Color.WHITE:
+			lbl.add_theme_color_override("font_color", label_color)
+		btn.add_child(lbl)
+	else:
+		btn.text = ""   # 清空 btn.text 避免双重显示（显式 Label + btn.text）
+
+
+static func _apply_style(btn: Button, res_normal: String, res_pressed: String, cap_insets: Rect2) -> void:
+	var normal_sb: StyleBoxTexture = _make_sb(res_normal, cap_insets)
+	btn.add_theme_stylebox_override("normal", normal_sb)
+	btn.add_theme_stylebox_override("hover", normal_sb)
+	var pressed_res: String = res_pressed if ResourceLoader.exists(res_pressed) else res_normal
+	btn.add_theme_stylebox_override("pressed", _make_sb(pressed_res, cap_insets))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+# Godot StyleBoxTexture texture_margin 四边：left=x, top=tex.h-y-h, right=tex.w-x-w, bottom=y（源 CCRect 左下原点，垂直翻转换算）。
+# margin 须 ÷CS(1.28125) 取整（cap px 是纹理像素口径，边框显示=px÷CS 点；shortcut_content/
+# battle_statistics_panel 双先例——2026-08-22 巡检订正：旧直传 px 致九宫格边框偏大 1.28×）。
+const CONTENT_SCALE: float = 1.28125
+
+
+static func _make_sb(res: String, cap_insets: Rect2) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	var tex: Texture2D = load(res) as Texture2D
+	sb.texture = tex
+	sb.texture_margin_left = int(cap_insets.position.x / CONTENT_SCALE)
+	sb.texture_margin_bottom = int(cap_insets.position.y / CONTENT_SCALE)
+	if tex != null:
+		sb.texture_margin_right = int((tex.get_width() - cap_insets.position.x - cap_insets.size.x) / CONTENT_SCALE)
+		sb.texture_margin_top = int((tex.get_height() - cap_insets.position.y - cap_insets.size.y) / CONTENT_SCALE)
+	sb.draw_center = true
+	return sb

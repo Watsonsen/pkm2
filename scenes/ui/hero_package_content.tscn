@@ -1,0 +1,207 @@
+[gd_scene load_steps=7 format=3 uid="uid://cfpjqmya5vihw"]
+
+[ext_resource type="Texture2D" uid="uid://bs0rqscfv6uhe" path="res://assets/ui/alpha/HVGA/package_herolist_bg.png" id="1_listbg"]
+[ext_resource type="Texture2D" uid="uid://8hvn3551duor" path="res://assets/ui/alpha/HVGA/classbtn.png" id="2_classbtn"]
+[ext_resource type="Texture2D" uid="uid://cfh88may2705n" path="res://assets/ui/alpha/HVGA/classbtnselected.png" id="3_classbtnsel"]
+[ext_resource type="Texture2D" uid="uid://dqa34v8g886cf" path="res://assets/ui/alpha/HVGA/backbtn.png" id="4_backbtn"]
+[ext_resource type="Texture2D" uid="uid://cxusvs3ojqiiw" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="5_backbtnp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/equip_soulstone_tag.png" id="6_soultag"]
+
+[node name="HeroPackageContent" type="Control" unique_id=1715059300]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ListBg" type="TextureRect" parent="." unique_id=282032672]
+layout_mode = 0
+z_index = 2
+offset_left = 80.0
+offset_top = 77.5
+offset_right = 650.0
+offset_bottom = 452.5
+mouse_filter = 2
+texture = ExtResource("1_listbg")
+expand_mode = 1
+
+[node name="TabAllBtn" type="TextureButton" parent="." unique_id=1567944507]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 11
+offset_left = 634.7
+offset_top = 85.75
+offset_right = 739.3
+offset_bottom = 144.25
+texture_normal = ExtResource("2_classbtn")
+texture_pressed = ExtResource("3_classbtnsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabAllLabel" type="Label" parent="." unique_id=1458366738]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 15
+offset_left = 640.0
+offset_top = 100.0
+offset_right = 740.0
+offset_bottom = 130.0
+theme_type_variation = &"HeroPackageTabLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabFrontBtn" type="TextureButton" parent="." unique_id=51934081]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 11
+offset_left = 634.7
+offset_top = 145.75
+offset_right = 739.3
+offset_bottom = 204.25
+texture_normal = ExtResource("2_classbtn")
+texture_pressed = ExtResource("3_classbtnsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabFrontLabel" type="Label" parent="." unique_id=1383256592]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 15
+offset_left = 640.0
+offset_top = 161.0
+offset_right = 740.0
+offset_bottom = 191.0
+theme_type_variation = &"HeroPackageTabLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabMiddleBtn" type="TextureButton" parent="." unique_id=2118412321]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 11
+offset_left = 634.7
+offset_top = 205.75
+offset_right = 739.3
+offset_bottom = 264.25
+texture_normal = ExtResource("2_classbtn")
+texture_pressed = ExtResource("3_classbtnsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabMiddleLabel" type="Label" parent="." unique_id=1065126803]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 15
+offset_left = 640.0
+offset_top = 221.0
+offset_right = 740.0
+offset_bottom = 251.0
+theme_type_variation = &"HeroPackageTabLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabBackBtn" type="TextureButton" parent="." unique_id=516611987]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 11
+offset_left = 634.7
+offset_top = 265.75
+offset_right = 739.3
+offset_bottom = 324.25
+texture_normal = ExtResource("2_classbtn")
+texture_pressed = ExtResource("3_classbtnsel")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="TabBackLabel" type="Label" parent="." unique_id=2076180870]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 15
+offset_left = 640.0
+offset_top = 281.0
+offset_right = 740.0
+offset_bottom = 311.0
+theme_type_variation = &"HeroPackageTabLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CloseBtn" type="TextureButton" parent="." unique_id=1791738619]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 28.1
+offset_top = 23.25
+offset_right = 85.9
+offset_bottom = 81.75
+texture_normal = ExtResource("4_backbtn")
+texture_pressed = ExtResource("5_backbtnp")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 源 heropackage.lua:761 draglist cliprect=CCRect(0,45,800,348) 全屏宽视觉裁剪区 → Godot
+; (0, 480−45−348=87, 800, 435)。旧 rect(105,95,625,443) 误用源 rect（触摸区）口径且窄 275：
+; 左右列卡 bg 外缘被裁 26.5（bg 左缘 112.84/右缘 617.16 在 105~625 外，2026-08-28 根修）。
+; tab/herosplit z 提至 11/12 只保 scroll(z10) 全宽后的绘制在上；点击命中按树序不看 z——
+; tab 由 panel _build_content 运行时 move_child 到 scroll 后保点击（2026-08-30 回归修复）。
+[node name="HeroScroll" type="ScrollContainer" parent="." unique_id=2030255719]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 10
+offset_left = 0.0
+offset_top = 87.0
+offset_right = 800.0
+offset_bottom = 435.0
+mouse_filter = 0
+
+[node name="GridHost" type="Control" parent="HeroScroll" unique_id=62283616]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 1
+
+; herosplit 分解按钮（批 1 Task 9 静态化，源 heropackage.lua:680-753）：
+; Scale9 classbtn cap(40,25,40,25) 中心 ccp(695,60)（无 offsetx）→ Godot 中心 (775,500)；
+; scaleSize=DGSizeMake(120,75)=(93.75,58.59) → rect (728.125,470.703)-(821.875,529.297)。
+; press 层（源 :694-710）→ HeroPackageSplitBtn 三态 variation。text 由 panel fill。
+; ⚠️源 endPoint=0 永假默认隐藏，本项目作为 HeroSplitWindow 唯一入口常驻（受控偏离见 task-9-report）。
+; herosplit_tag（源 :743-753）refreshSplitButton 双分支 setVisible(false) 死代码，不迁移。
+[node name="HerosplitBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+z_index = 11
+offset_left = 648.125
+offset_top = 390.703
+offset_right = 741.875
+offset_bottom = 449.297
+theme_type_variation = &"HeroPackageSplitBtn"
+
+; 分解图标（源 :712-722 equip_soulstone_tag fix_height=24 中心 ccp(20,29)
+; → 按钮局部中心 (20, 58.59-29)，显示 21.23×24 = 纹理/CS × 24/(26/CS)）
+[node name="HerosplitIcon" type="TextureRect" parent="HerosplitBtn"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 9.384
+offset_top = 17.594
+offset_right = 30.616
+offset_bottom = 41.594
+mouse_filter = 2
+texture = ExtResource("6_soultag")
+expand_mode = 1
+
+; 分解文字（源 :723-741 size24 白 shadow(42,31,22)(0,2) 中心 DGccp(72,37)=(56.25,28.9)
+; → 按钮局部中心 (56.25, 58.59-28.9)；独立 Label 覆盖 Button.text 居中干扰，范式同 hero_split）
+[node name="HerosplitLabel" type="Label" parent="HerosplitBtn"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -3.75
+offset_top = 14.688
+offset_right = 116.25
+offset_bottom = 44.688
+theme_type_variation = &"HeroPackageSplitLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1

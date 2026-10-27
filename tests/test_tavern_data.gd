@@ -1,0 +1,426 @@
+extends GutTest
+# Phase 5.3 tavern_data 抽卡查询 + 产出测试（2026-07-02）。
+# TavernType 多级查表 + roll_tavern_loot 产出（照源 local_server.lua:1673 tavern_draw）。
+
+var cm: ConfigManager
+
+
+func before_all() -> void:
+	cm = ConfigManager.new()
+	cm.load_all()
+
+
+# MagicSoul/十连/非免费/count=0 → Cost=400 Diamond。
+func test_get_tavern_cost() -> void:
+	var cost: int = TavernData.get_tavern_cost("MagicSoul", true, false, 0, cm)
+	assert_eq(cost, 400, "MagicSoul is_ten=true is_free=false count=0 → Cost=400")
+
+
+func test_get_tavern_chest_group() -> void:
+	var cg: int = TavernData.get_tavern_chest_group("MagicSoul", true, false, 0, cm)
+	assert_eq(cg, 23, "MagicSoul → Chest Group ID=23")
+
+
+func test_get_tavern_info_missing() -> void:
+	var row: Dictionary = TavernData.get_tavern_info("NonExist", true, false, 0, cm)
+	assert_eq(row.size(), 0, "不存在 type → 空 row")
+
+
+func test_get_tavern_box() -> void:
+	var box: Dictionary = TavernData.get_tavern_box(1, 0, cm)
+	assert_eq(int(box.get("Box Type", 0)), 1, "TavernBoxType 1/0 Box Type=1")
+
+
+# 单抽产出 ≥1 equip（源 :1721-1758 drawCount=1，equip 数量固定 1）。
+func test_roll_loot_single() -> void:
+	var rng := BattleRng.new(12345)
+	var loots: Array = TavernData.roll_tavern_loot(0, 0, rng, cm)
+	assert_true(loots.size() >= 1, "单抽至少产出 1 物品")
+	var loot: Dictionary = loots[0]
+	assert_gt(int(loot["id"]), 0, "产出 id > 0")
+	assert_eq(int(loot["amount"]), 1, "equip 数量固定 1")
+
+
+# 十连产出 ≥10 equip（源 :1723 drawCount=10）。
+func test_roll_loot_combo() -> void:
+	var rng := BattleRng.new(12345)
+	var loots: Array = TavernData.roll_tavern_loot(1, 0, rng, cm)
+	assert_true(loots.size() >= 10, "十连至少产出 10 equip")
+
+
+# stone 分支产出 3 个 equip，数量 1-3（源 :1681-1715 stone_green→品质[1,2,3]）。
+func test_roll_loot_stone() -> void:
+	var rng := BattleRng.new(12345)
+	var loots: Array = TavernData.roll_tavern_loot("stone", "stone_green", rng, cm)
+	assert_eq(loots.size(), 3, "灵魂石分支产出 3 个 equip")
+	for loot in loots:
+		assert_true(int(loot["amount"]) >= 1, "数量 >=1")
+		assert_true(int(loot["amount"]) <= 3, "数量 <=3")
+
+
+# 产出处均在有效池（equip 有 Icon / hero Portrait+Hero，源 :1729-1745）。
+func test_roll_loot_ids_in_pool() -> void:
+	var rng := BattleRng.new(999)
+	var loots: Array = TavernData.roll_tavern_loot(1, 0, rng, cm)
+	var equip_pool: Array[int] = TavernData._collect_valid_equip_ids(cm)
+	var hero_pool: Array[int] = TavernData._collect_valid_hero_ids(cm)
+	for loot in loots:
+		var lid: int = int(loot["id"])
+		assert_true(equip_pool.has(lid) or hero_pool.has(lid), "产出 id 必在 equip 或 hero 池")
+
+
+# ---- 抽卡池非数字 key 过滤（源 local_server.lua:1731 type(k)=="number"，2026-09-07 空白图标根修）----
+# Equip 表混有 359 个 "equip.2.0.0.xxx" 非数字 key 行（策划模板行）；源 Lua type(k)=="number"
+# 天然滤除，GDScript 迁移丢失该过滤致 int("equip.2.0.0.011")=0 进池（49.7% 抽到 id=0，
+# 查表无行 → readequip_icon 内容图为空 → 只剩边框衬底 = 空白图标，用户高频反馈）。
+
+# 池内 id 必须能查回 Equip 行（id=0 无行 → 图标空白根因）。
+func test_equip_pool_ids_resolve_to_rows() -> void:
+	var pool: Array[int] = TavernData._collect_valid_equip_ids(cm)
+	assert_false(pool.has(0), "equip 池不含 id=0（非数字 key int 截断值）")
+	assert_gt(pool.size(), 0, "equip 池非空")
+	var raw: Dictionary = cm.get_raw_table("Equip")
+	for eid in pool:
+		assert_true(raw.has(str(eid)), "池 id=%d 必能查回 Equip 行" % eid)
+
+
+# hero 池同守卫（Unit 表当前全数字 key，防御性对齐源过滤）。
+func test_hero_pool_ids_resolve_to_rows() -> void:
+	var pool: Array[int] = TavernData._collect_valid_hero_ids(cm)
+	assert_false(pool.has(0), "hero 池不含 id=0")
+	var raw: Dictionary = cm.get_raw_table("Unit")
+	for hid in pool:
+		assert_true(raw.has(str(hid)), "池 id=%d 必能查回 Unit 行" % hid)
+
+
+# 十连产出 id 全部 > 0（修前 49.7% 概率出 0，固定 seed 确定性复现）。
+func test_roll_loot_ids_positive() -> void:
+	var rng := BattleRng.new(4242)
+	var loots: Array = TavernData.roll_tavern_loot(1, 0, rng, cm)
+	for loot in loots:
+		assert_gt(int(loot["id"]), 0, "产出 id > 0（0=非数字 key 截断产物）")
+
+
+# stone 分支产出 id 全部 > 0（同根因第三处 :158）。
+func test_roll_stone_ids_positive() -> void:
+	var rng := BattleRng.new(4242)
+	var loots: Array = TavernData.roll_tavern_loot("stone", "stone_purple", rng, cm)
+	for loot in loots:
+		assert_gt(int(loot["id"]), 0, "stone 产出 id > 0")
+
+
+# ---- 免费抽卡 Logic（照源 tavern.lua isShowFree/getCountdown + player.lua getTavernLeftTimes/useFreeTavern，2026-07-08）----
+
+# 源 getTavernLeftTimes：新档（last_get_time=0）跨日返满额（Bronze 5 / Gold 1）。
+func test_left_times_initial() -> void:
+	var pd := PlayerData.new(cm)
+	assert_eq(TavernData.get_left_times(pd, "Bronze", 1000000), 5, "新档 Bronze 跨日返满额 5")
+	assert_eq(TavernData.get_left_times(pd, "Gold", 1000000), 1, "新档 Gold 满额 1")
+
+
+# 源 useFreeTavern：免费抽后 left_cnt-1（同日）。
+func test_left_times_decrement() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	TavernData.use_free_tavern(pd, "Bronze", now)
+	assert_eq(TavernData.get_left_times(pd, "Bronze", now + 1), 4, "同日用 1 次 5→4")
+
+
+# 源 getTavernLeftTimes 跨日重置：次日返满额（checkTwoDateod true）。
+func test_left_times_cross_day() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	TavernData.use_free_tavern(pd, "Bronze", now)
+	assert_eq(TavernData.get_left_times(pd, "Bronze", now + 86400), 5, "次日跨日重置返满额 5")
+
+
+# 源 getCountdown：免费抽后进 CD（Bronze 600s），过 CD 归 0。
+func test_countdown_after_use() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	TavernData.use_free_tavern(pd, "Bronze", now)
+	assert_eq(TavernData.get_countdown(pd, "Bronze", now + 10), 590, "CD 中剩 590s")
+	assert_eq(TavernData.get_countdown(pd, "Bronze", now + 600), 0, "过 CD 归 0")
+
+
+# 源 isShowFree：新档有额度无 CD → true；CD 中 → false。
+func test_is_show_free() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	assert_eq(TavernData.is_show_free(pd, "Bronze", now), true, "新档 Bronze 有额度无 CD → free")
+	TavernData.use_free_tavern(pd, "Bronze", now)
+	assert_eq(TavernData.is_show_free(pd, "Bronze", now + 10), false, "CD 中 → 非 free")
+
+
+# 源 Bronze 每日 5 次：用 5 次后额度耗尽，CD 结束也非 free（getLeftTimes 返 0）。
+func test_use_until_exhausted() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	for i in range(5):
+		TavernData.use_free_tavern(pd, "Bronze", now + i)
+	assert_eq(TavernData.get_left_times(pd, "Bronze", now + 100), 0, "5 次免费后额度耗尽")
+	# now+700：dt=696>600 验 CD 结束归 0，且 12min 内不跨日（避时区敏感）→ 额度 0 仍非 free
+	assert_eq(TavernData.is_show_free(pd, "Bronze", now + 700), false, "额度耗尽 CD 结束仍非 free")
+
+
+# ---- 免费 CD 倒计时文字（照源 getCountdownText + gethmsNString，2026-07-08）----
+
+# 源 getCountdownText：bronze CD 结束有次数 → "剩余免费次数 D/D"。
+func test_countdown_text_bronze_free() -> void:
+	var pd := PlayerData.new(cm)
+	var r: Dictionary = TavernData.get_countdown_text(pd, "Bronze", 1000000)
+	assert_eq(bool(r["is_counting"]), false, "新档 CD 结束非倒计时")
+	assert_eq(String(r["text"]), "剩余免费次数 5/5", "bronze 新档剩余 5/5")
+
+
+# bronze 次数用完 → "今日免费次数已用完"。
+func test_countdown_text_bronze_exhausted() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	for i in range(5):
+		TavernData.use_free_tavern(pd, "Bronze", now + i)
+	var r: Dictionary = TavernData.get_countdown_text(pd, "Bronze", now + 700)  # dt696>600 CD 结束 + 额度0
+	assert_eq(String(r["text"]), "今日免费次数已用完", "bronze 额度耗尽")
+
+
+# CD 中 → is_counting true + "HH:MM:SS"（源 gethmsNString）。
+func test_countdown_text_in_cd() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	TavernData.use_free_tavern(pd, "Bronze", now)
+	var r: Dictionary = TavernData.get_countdown_text(pd, "Bronze", now + 10)
+	assert_eq(bool(r["is_counting"]), true, "CD 中 is_counting")
+	assert_eq(String(r["text"]), "00:09:50", "600-10=590s = 00:09:50")
+
+
+# gold CD 结束 → text 空（源 box_chance gold 无值，不显示次数）。
+func test_countdown_text_gold_empty() -> void:
+	var pd := PlayerData.new(cm)
+	var r: Dictionary = TavernData.get_countdown_text(pd, "Gold", 1000000)
+	assert_eq(bool(r["is_counting"]), false, "gold 新档 CD 结束")
+	assert_eq(String(r["text"]), "", "gold CD 结束无次数文字")
+
+
+# ---- 首抽保底标记（照源 tavern.lua:285 isFirstDraw + player.lua:1730 refreshFirstTavern，2026-07-08）----
+
+# 源 isFirstDraw：新档 has_first_draw=0 → {once, ten} 均 true（未首抽）。
+func test_first_draw_initial() -> void:
+	var pd := PlayerData.new(cm)
+	var ifd: Dictionary = TavernData.is_first_draw(pd, "Bronze")
+	assert_eq(bool(ifd["once"]), true, "新档单抽未首抽")
+	assert_eq(bool(ifd["ten"]), true, "新档十连未首抽")
+	assert_eq(TavernData.is_first_one_draw(pd, "Bronze"), true, "is_first_one_draw 新档 true")
+	assert_eq(TavernData.is_first_ten_draw(pd, "Bronze"), true, "is_first_ten_draw 新档 true")
+
+
+# 源 refreshFirstTavern times=one：单抽后 of=1，单抽标记→false，十连仍 true。
+func test_refresh_first_once() -> void:
+	var pd := PlayerData.new(cm)
+	TavernData.refresh_first_tavern(pd, "Bronze", false)
+	assert_eq(TavernData.is_first_one_draw(pd, "Bronze"), false, "单抽后单抽标记置1")
+	assert_eq(TavernData.is_first_ten_draw(pd, "Bronze"), true, "单抽不影响十连标记")
+
+
+# 源 refreshFirstTavern times=ten：十连后 tf=1，十连标记→false。
+func test_refresh_first_ten() -> void:
+	var pd := PlayerData.new(cm)
+	TavernData.refresh_first_tavern(pd, "Gold", true)
+	assert_eq(TavernData.is_first_ten_draw(pd, "Gold"), false, "十连后十连标记置1")
+	assert_eq(TavernData.is_first_one_draw(pd, "Gold"), true, "十连不影响单抽标记")
+
+
+# 源 makebits 编码：单抽+十连都置后两标记独立（高16/低16位不串扰）。
+func test_refresh_first_both() -> void:
+	var pd := PlayerData.new(cm)
+	TavernData.refresh_first_tavern(pd, "Bronze", false)
+	TavernData.refresh_first_tavern(pd, "Bronze", true)
+	assert_eq(TavernData.is_first_one_draw(pd, "Bronze"), false, "单抽标记保留")
+	assert_eq(TavernData.is_first_ten_draw(pd, "Bronze"), false, "十连标记保留")
+
+
+# 持久化：to_dict/from_dict 后 has_first_draw 位标记保留。
+func test_first_draw_persist() -> void:
+	var pd := PlayerData.new(cm)
+	TavernData.refresh_first_tavern(pd, "Bronze", false)
+	TavernData.refresh_first_tavern(pd, "Gold", true)
+	var saved: Dictionary = pd.to_dict()
+	var pd2 := PlayerData.from_dict(saved, cm)
+	assert_eq(TavernData.is_first_one_draw(pd2, "Bronze"), false, "存档后单抽标记保留")
+	assert_eq(TavernData.is_first_ten_draw(pd2, "Gold"), false, "存档后十连标记保留")
+
+
+# ---- 品质展示阈值（照源 tavern.lua:233-237 getExRank，2026-07-08）----
+
+# 源 getExRank：TavernType[ex_rank_key[box]]['true']['false'][0]["Exhibition Rank"]（固定十连付费层）。
+# bronze Exhibition Rank=3（playBurst 阈值：equip 品质>=3 显示旋转光效）。
+func test_get_ex_rank_bronze() -> void:
+	assert_eq(TavernData.get_ex_rank("bronze", cm), 3, "bronze 十连付费 Exhibition Rank=3")
+
+
+# gold/MagicSoul Exhibition Rank=4（钻石卡池阈值更高，源 Gold/MagicSoul ['true']['false']['0']=4）。
+func test_get_ex_rank_gold_magic() -> void:
+	assert_eq(TavernData.get_ex_rank("gold", cm), 4, "gold Exhibition Rank=4")
+	assert_eq(TavernData.get_ex_rank("magic", cm), 4, "MagicSoul Exhibition Rank=4")
+
+
+# 未知 box（EX_RANK_KEY_MAP 无映射）→ 0。
+func test_get_ex_rank_missing() -> void:
+	assert_eq(TavernData.get_ex_rank("nonexist", cm), 0, "未知 box → 0")
+
+
+# ---- 魂匣热点表驱动（2026-09-16 重建）----
+# 源链路：服务器 ask_magicsoul 按 TavernDailyHero 当日行下发 hids（[1]=Soul 4 本周英雄、
+# [2-4]=Soul 1-3 今日魂石，getMagicHero 经 Fragment 反查转英雄显示）；源 local_server
+# 单机化用随机数替代（:1660-1669）致热点与产出脱钩。重建按表驱动；表止于 2014-06-14，
+# 超界日序取模循环（确定性受控偏离）。
+
+func _local_ts(y: int, m: int, d: int, h: int) -> int:
+	# 本地时刻 → unix ts（抵消查询侧的时区偏移，测试不依赖测试机时区）
+	var off_min: int = int(Time.get_time_zone_from_system().get("bias", 0))
+	return int(Time.get_unix_time_from_datetime_dict(
+		{"year": y, "month": m, "day": d, "hour": h, "minute": 0, "second": 0})) - off_min * 60
+
+
+func _soul_heroes_of_row(row: Dictionary) -> Array[int]:
+	var heroes: Array[int] = []
+	for key in ["Soul 1 ID", "Soul 2 ID", "Soul 3 ID"]:
+		var soul_id: int = int(row.get(key, 0))
+		for tid in cm.get_raw_table("Fragment"):
+			if int(cm.get_raw_table("Fragment")[tid].get("Fragment ID", 0)) == soul_id:
+				heroes.append(int(tid))
+				break
+	return heroes
+
+
+func test_ask_magicsoul_table_driven_day() -> void:
+	# 2014-01-13 表内行：Soul 4=34（本周英雄）、今日三魂 152/151/137 → Fragment 转英雄
+	var ids: Array[int] = TavernData.ask_magicsoul(BattleRng.new(42), cm, _local_ts(2014, 1, 13, 12))
+	assert_eq(ids.size(), 6, "返回 6 个（源 ask_magicsoul for 1..6，后 2 个 UI 未用）")
+	assert_eq(ids[0], 34, "首个=本周特别英雄（Soul 4 ID）")
+	var expect: Array[int] = _soul_heroes_of_row(
+		{"Soul 1 ID": 152, "Soul 2 ID": 151, "Soul 3 ID": 137})
+	assert_eq(ids.slice(1, 4), expect, "今日热点=当日 Soul 1-3 对应英雄")
+
+
+func test_ask_magicsoul_out_of_table_loops_deterministically() -> void:
+	# 表外日期（2026）：日序取模循环——[0] 恒属全表 Soul 4 集合，同日两次调用相同
+	var soul4_set: Array = []
+	for month in cm.get_raw_table("TavernDailyHero").get("2014", {}).values():
+		for day in month.values():
+			soul4_set.append(int(day.get("Soul 4 ID", 0)))
+	var a: Array[int] = TavernData.ask_magicsoul(BattleRng.new(1), cm, _local_ts(2026, 9, 16, 12))
+	assert_true(soul4_set.has(a[0]), "表外日 [0]=%d 应属 Soul 4 集合" % a[0])
+	var b: Array[int] = TavernData.ask_magicsoul(BattleRng.new(1), cm, _local_ts(2026, 9, 16, 12))
+	assert_eq(a, b, "同日确定性（取模 + 同 seed）")
+
+
+func test_ask_magicsoul_all_ids_are_heroes() -> void:
+	# UI 直接把 id 喂 ReadheroIcon——全部须为有效英雄（魂石已转英雄 id）
+	var ids: Array[int] = TavernData.ask_magicsoul(BattleRng.new(7), cm, _local_ts(2026, 9, 16, 12))
+	var unit: Dictionary = cm.get_raw_table("Unit")
+	for i in ids.size():
+		var row: Dictionary = unit.get(str(ids[i]), {})
+		assert_true(String(row.get("Portrait", "")) != "" and String(row.get("Unit Type", "")) == "Hero",
+			"ids[%d]=%d 应为有效英雄" % [i, ids[i]])
+
+
+# ---- 品质分池(原版服务器掉落组的单机化重建,2026-09-07)----
+# 原版客户端证据:TavernType 表每行带 Chest Group ID 且首抽/累计抽数切换组号(掉落组
+# 服务器私有);Gold 十连文案"十连抽必得英雄";协议 _new_heroes/_smash_idx(新英雄/
+# 重复碎魂);MagicSoul DrawTimes 26 切组。数值不可考,按品质重建。
+
+func _roll_many_ids(tavern_type: String, is_ten: bool, is_first: bool, magic_combo: int, rounds: int) -> Array:
+	var ids: Array = []
+	for i in range(rounds):
+		var rng := BattleRng.new(1000 + i)
+		var loots: Array = TavernData.roll_tavern_loot(1 if is_ten else 0, 0, rng, cm, tavern_type, is_first, magic_combo)
+		for loot in loots:
+			ids.append(int(loot["id"]))
+	return ids
+
+
+func _quality_of(eid: int) -> int:
+	return int(cm.get_raw_table("Equip").get(str(eid), {}).get("Quality", 0))
+
+
+# 各箱品质池:Bronze 1-2 / Gold 3-4（MagicSoul 2026-09-16 起走魂匣专属分支，不进品质池）。
+func test_pool_quality_ranges() -> void:
+	for entry in [["Bronze", 1, 2], ["Gold", 3, 4]]:
+		var ids: Array = _roll_many_ids(entry[0], false, false, 0, 40)
+		assert_gt(ids.size(), 0, "%s 产出非空" % entry[0])
+		for eid in ids:
+			if eid < 100:
+				continue
+			var q: int = _quality_of(eid)
+			assert_true(q >= entry[1] and q <= entry[2],
+				"%s equip 品质 %d 应在 [%d,%d]" % [entry[0], q, entry[1], entry[2]])
+
+
+# 首抽高一档(源首抽独立 Chest Group:Bronze 2-3 / Gold 4-5)。
+func test_first_draw_quality_boost() -> void:
+	for entry in [["Bronze", 2, 3], ["Gold", 4, 5]]:
+		var ids: Array = _roll_many_ids(entry[0], false, true, 0, 40)
+		for eid in ids:
+			if eid < 100:
+				continue
+			var q: int = _quality_of(eid)
+			assert_true(q >= entry[1] and q <= entry[2],
+				"%s 首抽品质 %d 应在 [%d,%d]" % [entry[0], q, entry[1], entry[2]])
+
+
+# Gold 十连必得英雄位(源 gold TAVERNRES.HERO_IS "十连抽必得英雄")。
+func test_gold_ten_hero_guarantee() -> void:
+	for i in range(10):
+		var rng := BattleRng.new(2000 + i)
+		var loots: Array = TavernData.roll_tavern_loot(1, 0, rng, cm, "Gold", false, 0)
+		var has_hero: bool = false
+		for loot in loots:
+			if int(loot["id"]) < 100:
+				has_hero = true
+		assert_true(has_hero, "gold 十连必含英雄位(seed %d)" % i)
+
+
+# magic 池魂匣专属产出（2026-09-16 重建，TAVERNRES.CAN_GET_MULTIPLE_SOUL_STONES
+# + 面板今日/本周热点框 + gold 十连必得先例）：每位今日热点魂石 ×1-3，
+# 本周英雄整卡单抽 10% 附加 / 十连必得附加位。
+func test_magic_roll_single_day_soul() -> void:
+	var now: int = _local_ts(2014, 1, 13, 12)
+	var row: Dictionary = cm.get_raw_table("TavernDailyHero")["2014"]["1"]["13"]
+	var souls: Array = [int(row["Soul 1 ID"]), int(row["Soul 2 ID"]), int(row["Soul 3 ID"])]
+	for i in range(10):
+		var loots: Array = TavernData.roll_tavern_loot(0, 0, BattleRng.new(100 + i), cm, "MagicSoul", false, 0, now)
+		assert_gt(loots.size(), 0, "单抽产出非空")
+		var first: Dictionary = loots[0]
+		assert_true(souls.has(int(first["id"])), "单抽主位=今日热点魂石之一（id=%d）" % int(first["id"]))
+		assert_true(int(first["amount"]) >= 1 and int(first["amount"]) <= 3, "魂石数量 1-3")
+
+
+func test_magic_ten_guarantees_week_hero() -> void:
+	var now: int = _local_ts(2014, 1, 13, 12)
+	var row: Dictionary = cm.get_raw_table("TavernDailyHero")["2014"]["1"]["13"]
+	var week_hero: int = int(row["Soul 4 ID"])
+	for i in range(5):
+		var loots: Array = TavernData.roll_tavern_loot(1, 0, BattleRng.new(200 + i), cm, "MagicSoul", false, 0, now)
+		var has_week: bool = false
+		var soul_count: int = 0
+		for loot in loots:
+			if int(loot["id"]) == week_hero:
+				has_week = true
+			elif int(loot["id"]) >= 100:
+				soul_count += 1
+		assert_true(has_week, "magic 十连必得本周英雄 %d（seed %d）" % [week_hero, i])
+		assert_eq(soul_count, 10, "十连主位 10 个全为魂石（seed %d）" % i)
+
+
+# 群反馈 #8（2026-10-08）：魂匣（MagicSoul）免费 CD 432000s(120h)→3600s(1h)。
+# 源 CD 120h 卡死成"5 天 1 次免费"，改 1h 后每日 1 次（FREE_TIMES 跨日重置）真正生效。
+func test_magic_soul_free_cd_one_hour() -> void:
+	var pd := PlayerData.new(cm)
+	var now: int = 1000000
+	assert_eq(TavernData.is_show_free(pd, "MagicSoul", now), true, "新档魂匣免费可用")
+	TavernData.use_free_tavern(pd, "MagicSoul", now)
+	assert_eq(TavernData.get_countdown(pd, "MagicSoul", now + 10), 3590, "CD 中剩 3590s（1h 档）")
+	assert_eq(TavernData.get_countdown(pd, "MagicSoul", now + 1800), 1800, "半程剩 1800s")
+	assert_eq(TavernData.get_countdown(pd, "MagicSoul", now + 3600), 0, "过 1h CD 归 0")
+	assert_eq(TavernData.is_show_free(pd, "MagicSoul", now + 3600), false, "同日免费次数已用仍非 free")
+	assert_eq(TavernData.is_show_free(pd, "MagicSoul", now + 86400), true, "跨日重置恢复免费")

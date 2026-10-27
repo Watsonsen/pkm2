@@ -1,0 +1,253 @@
+class_name PopWindow
+extends Control
+
+## 弹窗 MVC 基类（View 层）— 照源 ui/popwindow/popwindow.lua 翻译（Phase 7 起步，2026-07-02）。
+## Control 全屏 + shade ColorRect（黑半透遮罩）+ container（内容层）+ show/remove + 生命周期回调。
+## onEnterHandlers/onExitHandlers。Godot：shade mouse_filter STOP(swallow)/IGNORE + _enter_tree/_exit_tree。
+
+const DEFAULT_SHADE_COLOR: Color = Color(0.0, 0.0, 0.0, 150.0 / 255.0)
+# 弹窗缩放入场（源 EaseBackOut 0.2s）：container scale 0→1，pivot 居中。
+const SCALE_IN_DUR: float = 0.2
+# 打开弹窗音效名（源 common_popup_window；play_open_sfx 开关控制）。
+const OPEN_SFX_NAME: String = "common_popup_window"
+
+# ── 动态 z 栈（2026-09-03 穿透根修方案 B，审查报告-界面布局差异排查-2026-09-03.md）──
+# 旧：所有弹窗根恒 z=100 → 子树内 relative z>0 节点（hero tab z=11/13 → effective 111/113，
+# Godot z 同 canvas 全局比较）穿透兄弟弹窗（fragment/package/task 右侧 tab 区两层叠压）。
+# 新：show_window 入栈，z = Z_BASE + 栈位×Z_STEP（100/200/300…），remove/free 出栈收缩重排——
+# 后开弹窗整棵子树（effective ≤ 基准 + 子树内最大 relative z ≈ 13）恒盖前开弹窗（基准差 100）。
+# 源 pushScene 栈语义的 z 等价物。Z_STEP=100 > 已知子树内最大 relative z（hero tab 13、
+# hero_detail BaseLayer 1、stage_select mode 20、标题 22）。
+const Z_BASE: int = 100
+const Z_STEP: int = 100
+static var _open_stack: Array[CanvasItem] = []
+
+var identity: String = ""
+var param: Dictionary = {}
+var shade_layer: ColorRect = null
+var container: Control = null
+var _on_enter_handlers: Array[Callable] = []
+var _on_exit_handlers: Array[Callable] = []
+var _swallow: bool = true
+# 栈顶变化通知（2026-09-14）：_refresh_stack_z 检测栈顶面板变化时对新栈顶调 _on_became_top
+# （默认空实现）。服务"被全屏子面板盖住、回到栈顶时需刷新"的面板（equipcraft 扫荡返回刷新
+# 数字——register_on_exit 单点在真实点击路径存在未定位断点，栈顶驱动覆盖任意关闭方式）。
+static var _last_stack_top: CanvasItem = null
+# --- T4 样板收敛（审查报告-架构评估与重构方案-2026-08-14 阶段一；默认值保持旧默认行为，子类按需置位）---
+# 打开弹窗音效（原 10 份 register_on_enter(func(): AudioPlayer.play_sfx(...)) 样板上收；默认关）。
+var play_open_sfx: bool = false
+# shade 全透明且不吞点击（原 10 文件静态 shade_layer.color.a=0 + IGNORE hack；pushScene 型面板 tscn 已带全屏 bg）。
+var transparent_shade: bool = false
+# 点击 shade 是否关闭弹窗（true=旧行为点外关闭；false=吞点击但不关，对齐源 popwindow.lua
+# 各面板 cfg 默认无点外关闭——herodetail {touch_priority=-130} 无 not_swallow/no_shade，
+# 源 CCLayerColor 黑半透只吞点击，关闭仅靠按钮。2026-08-29 用户反馈点详情页任意位置误返回）。
+var shade_close_on_click: bool = true
+# HudOverlay identity（非空时 show_window 切换 / remove_window 恢复打开前记录值；
+# 原 8 份 remove_window override 样板。嵌套弹窗（如 package→handbook）关内层恢复外层
+# identity 而非硬编码 main，否则 main 版含头像 HUD 透过外层弹窗显示（2026-08-20 用户反馈）。
+# 动态 identity/恢复的面板（battle_prepare 记 _prev_identity、package 构造传入）不适用，保留各自 override。
+var hud_identity: String = ""
+var _hud_identity_prev: String = "main"   # show_window 打开前 identity（remove 恢复用；默认 main=旧行为兜底）
+# --- HUD 遮蔽通用治理（2026-09-08，P1）---
+# 本弹窗是否遮蔽 HUD（局部黑罩盖货币栏/头像/快捷栏）。源主线：scene 级弹窗 z≥100 一律
+# 盖住 mainLayer(100) 内 statusbar（黑遮罩物理覆盖，隐约可见+不可点）→ 默认 true。
+# 例外=源刻意低于 HUD 的悬浮板（如 equipboardofpackage 挂 mainLayer z=0 无遮罩）→ 置 false。
+# 由 _refresh_stack_z 栈重算统一驱动 HudOverlay.set_occluded，替代 HUD_HIDDEN_IDENTITIES
+# 打地鼠（旧模式每弹窗须清单+接线两处手工登记）。非 PopWindow external 节点用
+# set_meta("hud_occlude", true) 声明（默认 false 不遮蔽，battle_prepare 等全屏页走 identity 隐藏）。
+var hud_occlude: bool = true
+
+
+func _init(p_identity: String = "", p_param: Dictionary = {}) -> void:
+	identity = p_identity
+	param = p_param
+
+
+func setup() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade_layer = ColorRect.new()
+	shade_layer.color = DEFAULT_SHADE_COLOR
+	shade_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade_layer.mouse_filter = Control.MOUSE_FILTER_STOP if _swallow else Control.MOUSE_FILTER_IGNORE
+	if transparent_shade:
+		shade_layer.color.a = 0
+		shade_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(shade_layer)
+	container = Control.new()
+	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 2026-08-18 用户实跑修复：container 根挂（shade 兄弟）——原 shade 子挂时，
+	# 嵌套非模态浮层（如 package 内 equipboard，自身全 IGNORE 穿透）的点击会被宿主
+	# 全屏 STOP 的 shade 截走，宿主内容层（格子等）永远收不到（源 package 系 pushScene
+	# 场景无遮罩概念）。根挂后内容层在 shade 之上：内容命中→处理；空白区穿到 shade→
+	# 点外关闭，语义与原等价（container 全屏 IGNORE 不挡 shade 命中）。
+	add_child(container)
+	# 点击遮罩区域关闭弹窗（手游常见交互）。shade STOP 吞点击，gui_input 捕获后 remove_window。
+	# shade_close_on_click=false 时（对齐源 herodetail 等）仍吞点击但不触发关闭。
+	shade_layer.gui_input.connect(_on_shade_clicked)
+
+
+# 点击遮罩区域（弹窗外）→ 关闭弹窗（shade_close_on_click=false 时仅吞点击不关，对齐源）。
+func _on_shade_clicked(event: InputEvent) -> void:
+	if not shade_close_on_click:
+		return
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		remove_window()
+
+
+func show_window(parent: Node) -> void:
+	if parent == null:
+		return
+	if shade_layer == null:
+		setup()
+	parent.add_child(self)
+	# 动态 z 栈置顶（见文件头「动态 z 栈」段）：栈位递增基准，后开整棵子树恒盖先开。
+	_open_stack.append(self)
+	_refresh_stack_z()
+	if play_open_sfx:
+		AudioPlayer.play_sfx(OPEN_SFX_NAME)
+	if hud_identity != "":
+		_hud_identity_prev = HudOverlay.get_identity()
+		HudOverlay.apply_identity(hud_identity)
+	for h in _on_enter_handlers:
+		h.call()
+
+
+func remove_window() -> void:
+	# 条件恢复：仅当 identity 仍归本面板时恢复记录值——嵌套面板外层先关时不越权
+	# 覆盖内层 identity（否则外层恢复值会把内层的 HUD 规则拉错，如 main 版头像透显）。
+	if hud_identity != "" and HudOverlay.get_identity() == hud_identity:
+		HudOverlay.apply_identity(_hud_identity_prev)
+	for h in _on_exit_handlers:
+		h.call()
+	_unregister_from_stack()
+	queue_free()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		# 兜底出栈：不走 remove_window 的释放路径（测试 free、异常释放）也清理栈位。
+		_unregister_from_stack()
+
+
+## 全栈重排 z（栈位 → Z_BASE + i×Z_STEP）。收缩（乱序关闭）后剩余弹窗下移，
+## 其下已无更低弹窗，运行中变 z 无视觉跳变；新开弹窗拿当前最高位+1。
+## 元素类型 CanvasItem：兼容 push_external 入栈的非 PopWindow 全屏节点（BattlePreparePanel）。
+## 先清 Freed Object 死引用：external 节点靠 tree_exited 出栈，宿主树级联销毁时该信号
+## 不派发（GUT 实证 Freed Object 滞留），所有栈操作经本函数兜底清理。
+static func _refresh_stack_z() -> void:
+	var alive: Array[CanvasItem] = []
+	for p in _open_stack:
+		if is_instance_valid(p):
+			alive.append(p)
+	_open_stack = alive
+	for i in _open_stack.size():
+		var p: CanvasItem = _open_stack[i]
+		p.z_index = Z_BASE + i * Z_STEP
+		p.z_as_relative = false
+	# HUD 遮蔽联动（栈状态唯一咽喉，show/remove/PREDELETE/external 全经此）：栈内存在任一
+	# 遮蔽弹窗 → HUD 局部黑罩；栈空/仅剩不遮蔽弹窗 → 恢复。嵌套弹窗天然深度感知。
+	_sync_hud_occlusion()
+	# 栈顶变化通知（2026-09-14）：新开面板与关闭后下层复顶都触发（幂等刷新无害）。
+	# external 节点（无 _on_became_top）安全跳过；栈空时仅记录。
+	var cur_top: CanvasItem = null
+	if not _open_stack.is_empty():
+		cur_top = _open_stack[_open_stack.size() - 1]
+	if cur_top != _last_stack_top:
+		_last_stack_top = cur_top
+		if cur_top is PopWindow:
+			(cur_top as PopWindow)._on_became_top()
+
+
+# 栈顶变化钩子：面板从非顶变顶（含新开）时回调，子类按需重写（默认空）。
+func _on_became_top() -> void:
+	pass
+
+
+# 栈顶定性（2026-09-14 语义修正）：从栈顶向下找第一个能定性的面板——场景模拟型
+# （hud_identity 非空）→ 不遮蔽；纯弹窗（hud_occlude）→ 遮蔽。源 pushScene 全屏场景盖住
+# 栈底一切弹窗，statusbar 属新场景语义正常显示——真实链 equipcraft（纯弹窗）上开
+# stageselect（场景型）扫荡返回期间 HUD 应正常（旧全栈扫描会误判栈底 equipcraft 遮蔽）。
+# 旧语义"栈内任一纯弹窗即遮蔽"系对 pushScene 压栈的误读（2026-09-08 治理时无嵌套链路触发）。
+static func _sync_hud_occlusion() -> void:
+	var occ := false
+	for i in range(_open_stack.size() - 1, -1, -1):
+		var p: CanvasItem = _open_stack[i]
+		if p is PopWindow:
+			var w := p as PopWindow
+			# hud_identity 非空 = 场景模拟型弹窗（源 pushScene 场景如 shop/tavern/stageselect/crusade，
+			# HUD 版式属场景语义、货币条清晰可见）→ 不遮蔽；hud_identity 空 = 纯弹窗
+			# （源 scene/mainLayer 级 z≥100 一律盖 HUD）→ 默认遮蔽；hud_occlude=false =
+			# 显式例外（源刻意低于 statusbar 的悬浮板，如 equipboardofpackage z=0）。
+			if w.hud_identity != "":
+				break
+			if w.hud_occlude:
+				occ = true
+				break
+		elif p.has_meta("hud_occlude") and bool(p.get_meta("hud_occlude")):
+			occ = true
+			break
+	HudOverlay.set_occluded(occ)
+
+
+func _unregister_from_stack() -> void:
+	var idx := _open_stack.find(self)
+	if idx >= 0:
+		_open_stack.remove_at(idx)
+		_refresh_stack_z()
+
+
+## 非 PopWindow 全屏节点入栈共享动态 z（拿当前最高位+1，恒压栈内全部弹窗及其 relative
+## 子树——Z_STEP=100 > 已知最大 relative z 22）。适用 BattlePreparePanel 这类 Control
+## 全屏页：旧实现写死 z=210，HeroScene 链（hero_package 占栈位使选关面板 z=200）下
+## 选关章节标题 effective 200+22=222 穿透布阵页（用户 2026-09-07 报「底下关卡的标题
+## 透过来了」）。退出须配对 pop_external（PREDELETE 兜底只对本类生效）。
+static func push_external(node: CanvasItem) -> void:
+	_open_stack.append(node)
+	_refresh_stack_z()
+
+
+static func pop_external(node: CanvasItem) -> void:
+	var idx := _open_stack.find(node)
+	if idx >= 0:
+		_open_stack.remove_at(idx)
+		_refresh_stack_z()
+
+
+## Toast 提示（原 7 份逐字复制的反射版 _show_toast 收敛；GUT 环境 Toast autoload 常在，直调）。
+func _show_toast(text: String) -> void:
+	Toast.show_message(text)
+
+
+func register_on_enter(handler: Callable) -> void:
+	_on_enter_handlers.append(handler)
+
+
+func register_on_exit(handler: Callable) -> void:
+	_on_exit_handlers.append(handler)
+
+
+func set_swallow(swallow: bool) -> void:
+	_swallow = swallow
+	if shade_layer != null:
+		shade_layer.mouse_filter = Control.MOUSE_FILTER_STOP if _swallow else Control.MOUSE_FILTER_IGNORE
+
+
+## shade 点击关闭开关（false=吞点击不关，对齐源 herodetail 无点外关闭；默认 true 保持旧行为）。
+func set_shade_close_on_click(enabled: bool) -> void:
+	shade_close_on_click = enabled
+
+
+# 弹窗缩放入场（源 EaseBackOut 0.2s scale 0→1）。在 register_on_enter 回调里调用。
+# 直接 scale container（全屏 anchor，pivot 取屏幕中心），所有子节点（Bg/按钮）按比例从中心放大。
+# Godot 无 Ease.BACK_OUT 直接 ease_name，用 set_trans/set_ease 等价（TRANS_BACK + EASE_OUT）。
+func play_scale_in() -> void:
+	if container == null or not is_instance_valid(container):
+		return
+	# container 进入 tree 后 size 已 layout（= 屏幕实际大小），pivot=屏幕中心。
+	container.pivot_offset = container.size * 0.5
+	container.scale = Vector2.ZERO
+	var tw: Tween = create_tween()
+	tw.set_ease(Tween.EASE_OUT)
+	tw.set_trans(Tween.TRANS_BACK)
+	tw.tween_property(container, "scale", Vector2.ONE, SCALE_IN_DUR)

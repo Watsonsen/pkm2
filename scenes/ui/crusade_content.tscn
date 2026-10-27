@@ -1,0 +1,903 @@
+; crusade 两件套 content 底板（2026-07-17 立；2026-08-16 批 3 Task 7 照源重排）。
+; 照源 ui/crusade.lua（775 行）+ gametable/crusadeconfig.lua UIRes 静态化：
+;   dragLayer.dragContainer → %Scroll/%ScrollContent（视口 = 源 create :628-650 clipNode：
+;   bgframe 803.12×441.75 中心 (400,210) 内缩 L18/R28/T18/B18 → cocos (16.44,7.12)-
+;   (773.56,412.88) → Godot (96.44,147.12)-(853.56,552.88)；内容局部 y=412.88-cocos_y）；
+;   bg1-3/laftMap/rightMap/rightMap2/fog1-4 挂 ScrollContent（声明序 = 源 z 序
+;   bg < 地图容器（battle/box fill 挂其内） < fog4<3<2<1）；
+;   mainLayer 静态层挂 content 根（源 mainLayer 盖 dragLayer）；
+;   ruleLayer 静态化（原 crusade_rule_renderer procedural 退役，17 条文本 fill）。
+; 贴图口径（ crusade 系 TextureConfig 条目全 Prescaled=false → 条目 CS 不施加，
+; 只算显式 scale 累乘，批 3 Task 4 五重证据定稿）：bg=px/CS×2.0、fog=px/CS×4.0、
+;   其余 = px/CS。
+[gd_scene load_steps=31 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/toast_bg.png" id="TOASTBG"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/common/common_tips_button_close_1.png" id="CLOSE1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/main_head_level_bg_silver.png" id="SILVER"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/startbtn.png" id="STARTBTN"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn.png" id="2_back"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="3_backp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_detail_bg1.png" id="4_bg1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_detail_bg2.png" id="5_bg2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_detail_bg3.png" id="6_bg3"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_map_frame_light1.png" id="7_l1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_map_frame_light2.png" id="8_l2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_map_frame.png" id="9_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_title_bg.png" id="10_titlebg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_title.png" id="11_title"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_reset_bg.png" id="12_resetbg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_fog_1.png" id="13_fog1"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_fog_2.png" id="14_fog2"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_fog_3.png" id="15_fog3"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_fog_4.png" id="16_fog4"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/startbtn.png" id="17_start"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/stagepointer.png" id="18_pointer"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/money_dragonscale_small.png" id="19_dragon"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/main_vit_tips.png" id="20_vit"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_tip_title_bg.png" id="21_pvp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/common/common_tips_button_close_1.png" id="22_close"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/tip_detail_bg.png" id="23_tipdetail"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/pvp/pvp_tip_delimiter.png" id="24_delim"]
+
+[node name="CrusadeContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+; 项目适配（PopWindow 弹窗化全屏底图，源 pushScene 场景自含背景）
+[node name="FrameworkBg" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_right = 800.0
+offset_bottom = 480.0
+texture = ExtResource("1_bg")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 clipNode（crusade.lua:628-650）：仅横向拖拽（源 maxRight=-1259）。源为触屏拖拽
+; 无可见滚动条 → panel 运行时压平 HScrollBar min（否则 bar 占位 8px 钳高 405.76→413.76）
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 16.44
+offset_top = 67.12
+offset_right = 773.56
+offset_bottom = 472.88
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 0
+
+; 源 dragContainer：内容局部 y=412.88-cocos_y（clip 顶=frameBottom+18+clipH）；宽 = 最右
+; fog 右缘 2023.05（源手调 -1259 差 7px，ScrollContainer 自动右对齐，受控偏离记录）
+[node name="ScrollContent" type="Control" parent="Scroll"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_right = 2023.05
+offset_bottom = 405.76
+custom_minimum_size = Vector2(2023.05, 405.76)
+mouse_filter = 2
+
+; 源 bg1（467×254px/CS×2.0=728.98×396.49，anchor(0,0.5) pos(25,210)）
+[node name="Bg1" type="TextureRect" parent="Scroll/ScrollContent"]
+layout_mode = 3
+offset_left = 25.0
+offset_top = 4.63
+offset_right = 753.98
+offset_bottom = 401.12
+texture = ExtResource("4_bg1")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Bg2" type="TextureRect" parent="Scroll/ScrollContent"]
+layout_mode = 3
+offset_left = 752.0
+offset_top = 4.63
+offset_right = 1477.85
+offset_bottom = 401.12
+texture = ExtResource("5_bg2")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Bg3" type="TextureRect" parent="Scroll/ScrollContent"]
+layout_mode = 3
+offset_left = 1477.0
+offset_top = 4.63
+offset_right = 2020.22
+offset_bottom = 401.12
+texture = ExtResource("6_bg3")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 laftMap/rightMap/rightMap2（空容器中心 (25,12)/(752,12)/(1477,12)，dragContainer
+; 局部）→ 原点 (x, 412.88-12)；battle1-15/box1-15 fill 挂 Map 内散点（cocos y 上正→Godot 负）
+[node name="LaftMap" type="Control" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 25.0
+offset_top = 400.88
+offset_right = 25.0
+offset_bottom = 400.88
+mouse_filter = 2
+
+[node name="RightMap" type="Control" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 752.0
+offset_top = 400.88
+offset_right = 752.0
+offset_bottom = 400.88
+mouse_filter = 2
+
+[node name="RightMap2" type="Control" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 1477.0
+offset_top = 400.88
+offset_right = 1477.0
+offset_bottom = 400.88
+mouse_filter = 2
+
+; 源 fog1-4（crusadeconfig:835-886，全 pos(25,210) anchor(0,0.5) scale=4.0：
+; 640×127px/CS×4 = 1998.05×396.49 ratio 5.04 等比归源；四层叠放随进度消散，
+; 声明序 fog4 底 → fog1 顶 = 源 z 序；随 dragContainer 滚动）
+[node name="Fog4" type="TextureRect" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 25.0
+offset_top = 4.63
+offset_right = 2023.05
+offset_bottom = 401.12
+texture = ExtResource("16_fog4")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Fog3" type="TextureRect" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 25.0
+offset_top = 4.63
+offset_right = 2023.05
+offset_bottom = 401.12
+texture = ExtResource("15_fog3")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Fog2" type="TextureRect" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 25.0
+offset_top = 4.63
+offset_right = 2023.05
+offset_bottom = 401.12
+texture = ExtResource("14_fog2")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Fog1" type="TextureRect" parent="Scroll/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 25.0
+offset_top = 4.63
+offset_right = 2023.05
+offset_bottom = 401.12
+texture = ExtResource("13_fog1")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 mainLayer light1/2（495×260px/CS=386.44×202.93 中心 to_godot(400,210)=(480,350)）
+[node name="Light1" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 206.78
+offset_top = 168.54
+offset_right = 593.22
+offset_bottom = 371.47
+texture = ExtResource("7_l1")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Light2" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 206.78
+offset_top = 168.54
+offset_right = 593.22
+offset_bottom = 371.47
+texture = ExtResource("8_l2")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 bgframe（1029×566px/CS=803.12×441.75 中心 (480,350)；中心透明仅绘边框不挡交互）
+[node name="Frame" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = -1.56
+offset_top = 49.13
+offset_right = 801.56
+offset_bottom = 490.88
+texture = ExtResource("9_frame")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 crusade_title_bg（510×118px/CS=398.05×92.10 中心 to_godot(402,395.3)）
+[node name="TitleBg" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 202.98
+offset_top = 38.65
+offset_right = 601.02
+offset_bottom = 130.75
+texture = ExtResource("10_titlebg")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 crusade_title（crusadeconfig:936-945，515×103px/CS=401.95×80.39 中心 (402,390)→
+; (482,170)）。F1（2026-08-27 走查）：源 res 无 crusade/ 目录该图缺载，zh-CN 实机布条
+; 空白（screen_crusade.png 佐证）；本图系 en-US 渠道补图（红字 Crusade），与原版视觉
+; 不符故隐藏，资产保留待正版资源
+
+; 参考页对齐（2026-09-13）：卷轴上叠金色描边标题（参考页"远征"大字设计）；文字走
+; LSTR BURNING_CRUSADE（panel fill），样式照规则页标题金 (251,206,16) 放大到 36。
+[node name="TitleLabel" type="Label" parent="TitleBg"]
+offset_bottom = 92.1
+offset_left = 0
+offset_right = 398.04
+offset_top = 0
+horizontal_alignment = 1
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 36
+text = "燃烧的远征"
+vertical_alignment = 1
+
+[node name="Title" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+offset_left = 201.03
+offset_top = 49.8
+offset_right = 602.97
+offset_bottom = 130.2
+texture = ExtResource("11_title")
+expand_mode = 1
+mouse_filter = 2
+
+; 源 bottom(402,55)+bottomframe（75×75px Scale9 cap(20,20,18,18) → L20/T37/R37/B20 批 1
+; 公式，scaleSize 560×58 → 中心 (482,505)）
+[node name="BottomFrame" type="NinePatchRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 122.0
+offset_top = 396.0
+offset_right = 682.0
+offset_bottom = 454.0
+texture = ExtResource("12_resetbg")
+patch_margin_left = 16
+patch_margin_top = 29
+patch_margin_right = 29
+patch_margin_bottom = 16
+mouse_filter = 2
+
+; 源 showrule Scale9Button（bottom 局部 (-210,0) → 世界 (192,55) → Godot 中心 (272,505)，
+; 120×48，cap(14,20,60,23) 走 theme CrusadeActionBtn；文字子 Label（范式同 ResetLabel）
+[node name="RuleBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 132.0
+offset_top = 401.0
+offset_right = 252.0
+offset_bottom = 449.0
+theme_type_variation = &"CrusadeActionBtn"
+
+[node name="RuleLabel" type="Label" parent="RuleBtn"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "查看规则"
+
+; 源 resetbattle（bottom 局部 (200,0) → Godot 中心 (682,505)）
+[node name="ResetBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 542.0
+offset_top = 401.0
+offset_right = 662.0
+offset_bottom = 449.0
+theme_type_variation = &"CrusadeActionBtn"
+
+[node name="ResetLabel" type="Label" parent="ResetBtn"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "重新开始"
+
+; 源 shop Scale9Button（bottom 局部 (-75,0) 中心锚 → Godot 中心 (407,505)，130×48）
+[node name="ShopBtn" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 262.0
+offset_top = 401.0
+offset_right = 392.0
+offset_bottom = 449.0
+theme_type_variation = &"CrusadeActionBtn"
+
+[node name="ShopLabel" type="Label" parent="ShopBtn"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.247059, 0.019608, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "兑换奖励"
+
+; 源 lefttime（bottom 局部 (65,0) 中心锚 → Godot 中心 (547,505)，fontinfo normal_button
+; 18 号 ccc3(235,223,207) → theme CrusadeLefttimeLabel；fill 时格式化剩余次数）
+[node name="LefttimeLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 407.0
+offset_top = 411.0
+offset_right = 527.0
+offset_bottom = 439.0
+theme_type_variation = &"CrusadeLefttimeLabel"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; 源 bottom 子 money_dragonscale_small（39×39px/CS=30.44 中心 (367,504)）
+[node name="DragonIcon" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 271.78
+offset_top = 408.78
+offset_right = 302.22
+offset_bottom = 439.22
+texture = ExtResource("19_dragon")
+expand_mode = 1
+mouse_filter = 2
+
+; 项目适配（弹窗化退出途径；源 pushScene 场景无关闭按钮）
+[node name="CloseBtn" type="TextureButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.76
+offset_bottom = 73.54
+texture_normal = ExtResource("2_back")
+texture_pressed = ExtResource("3_backp")
+ignore_texture_size = true
+stretch_mode = 0
+
+; ── 源 battleLayer 敌方阵容弹窗（crusadeconfig :1312-1480 + crusade.lua showBattleInfo :177-235；
+; 2026-08-29 用户验收指示按源补全，撤 2026-08-17 常驻简化受控偏离）──
+; battleinfo=toast_bg Scale9(17,10,200,46) scaleSize 500×180 中心 (400,220)→Godot (400,260)。
+[node name="BattleLayer" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Shade" type="ColorRect" parent="BattleLayer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.35)
+mouse_filter = 0
+
+[node name="BattleInfo" type="NinePatchRect" parent="BattleLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 110.0
+offset_top = 168.0
+offset_right = 690.0
+offset_bottom = 358.0
+mouse_filter = 2
+texture = ExtResource("TOASTBG")
+patch_margin_left = 13
+patch_margin_top = 8
+patch_margin_right = 13
+patch_margin_bottom = 8
+
+[node name="BlCloseBtn" type="TextureButton" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 516.7
+offset_top = -6.7
+offset_right = 567.4
+offset_bottom = 44.7
+texture_normal = ExtResource("CLOSE1")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="EnemyIconHost" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 10.0
+offset_top = 5.0
+offset_right = 118.0
+offset_bottom = 69.0
+mouse_filter = 2
+
+[node name="LevelBg" type="TextureRect" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 130.0
+offset_top = 26.0
+offset_right = 202.0
+offset_bottom = 56.5
+mouse_filter = 2
+texture = ExtResource("SILVER")
+expand_mode = 1
+
+[node name="HeroNameLbl" type="Label" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 212.0
+offset_top = 26.0
+offset_right = 352.0
+offset_bottom = 54.0
+theme_type_variation = &"CrusadeBattleLayerLabel"
+mouse_filter = 2
+
+[node name="LevelLbl" type="Label" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 136.0
+offset_top = 28.0
+offset_right = 196.0
+offset_bottom = 52.0
+theme_type_variation = &"CrusadeBattleLayerLabel"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CurrentBattleLbl" type="Label" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 362.0
+offset_top = 26.0
+offset_right = 452.0
+offset_bottom = 54.0
+theme_type_variation = &"CrusadeBattleLayerLabel"
+mouse_filter = 2
+
+[node name="HeroHost1" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 15.0
+offset_top = 62.0
+offset_right = 119.0
+offset_bottom = 166.0
+mouse_filter = 2
+
+[node name="HeroHost2" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 106.0
+offset_top = 62.0
+offset_right = 210.0
+offset_bottom = 166.0
+mouse_filter = 2
+
+[node name="HeroHost3" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 197.0
+offset_top = 62.0
+offset_right = 301.0
+offset_bottom = 166.0
+mouse_filter = 2
+
+[node name="HeroHost4" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 288.0
+offset_top = 62.0
+offset_right = 392.0
+offset_bottom = 166.0
+mouse_filter = 2
+
+[node name="HeroHost5" type="Control" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 379.0
+offset_top = 62.0
+offset_right = 483.0
+offset_bottom = 166.0
+mouse_filter = 2
+
+; 源 start (442,75) 中心 → Godot (442,105)；startbtn 128×123px÷CS=99.9×96×源 scale 0.75
+; =74.9×72（2026-09-13 三轮：scale 0.75 漏乘订正，旧 99.9×96 偏大 25% 压视觉）。
+[node name="StartBtn2" type="TextureButton" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 490.0
+offset_top = 67.5
+offset_right = 564.9
+offset_bottom = 139.5
+texture_normal = ExtResource("STARTBTN")
+ignore_texture_size = true
+stretch_mode = 5
+
+
+; 源 battleinfo 名字行装饰（crusadeconfig :1371-1378 tip_detail_bg pos(160,140) 中心
+; → 弹窗内左上 (97,29)；本布局居中式名字行 → 底板中心对队名框中心 (282,40)，z=-1 垫底）
+[node name="TipDetailBg" type="TextureRect" parent="BattleLayer/BattleInfo"]
+mouse_filter = 2
+offset_bottom = 50.55
+offset_left = 219.15
+offset_right = 344.85
+offset_top = 29.45
+texture = ExtResource("23_tipdetail")
+z_index = -1
+
+; 源分隔线（crusadeconfig :1482-1492 pvp_tip_delimiter pos(200,33) 中心，500 宽弹窗居中
+; → 本 580 宽居中 x=290；475×2px÷CS=370.9×1.56，头像行 icon 底缘下方）
+[node name="TipDelimiter" type="TextureRect" parent="BattleLayer/BattleInfo"]
+mouse_filter = 2
+offset_bottom = 151.56
+offset_left = 104.55
+offset_right = 475.45
+offset_top = 150
+texture = ExtResource("24_delim")
+
+; 源公会行（crusadeconfig :1497-1523 guildHint pos(24,21) size16 ccc3(241,193,113)；
+; 单机无公会恒显 LSTR NOT_IN_GUILDS「未加入公会」，guildName 无源数据不迁移）
+[node name="GuildHintLbl" type="Label" parent="BattleLayer/BattleInfo"]
+unique_name_in_owner = true
+mouse_filter = 2
+offset_bottom = 176
+offset_left = 24
+offset_right = 260
+offset_top = 160
+theme_override_colors/font_color = Color(0.945098, 0.756863, 0.443137, 1)
+theme_override_font_sizes/font_size = 13
+text = "未加入公会"
+
+[node name="StartBtn" type="TextureButton" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+offset_left = 638.05
+offset_top = 298.0
+offset_right = 737.95
+offset_bottom = 394.0
+mouse_filter = 0
+texture_normal = ExtResource("17_start")
+texture_pressed = ExtResource("17_start")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 项目适配（消息反馈通道；源为 toast+rewardInfo 浮窗双通道——受控偏离记录）
+[node name="ResultLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 30.0
+offset_top = 380.0
+offset_right = 770.0
+offset_bottom = 408.0
+mouse_filter = 2
+
+; 源 currentStageHint（stagepointer anchor(0.5,0) pos(80,110) → 底边中心 Godot (160,450)；
+; fill 时 _refresh_hint_pos 重定位，此为初始位）
+[node name="HintAnchor" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+offset_left = 80.0
+offset_top = 370.0
+offset_right = 80.0
+offset_bottom = 370.0
+mouse_filter = 2
+
+[node name="StageHint" type="TextureRect" parent="HintAnchor"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = -26.95
+offset_top = -62.44
+offset_right = 26.95
+offset_bottom = 0.0
+texture = ExtResource("18_pointer")
+expand_mode = 1
+mouse_filter = 2
+
+; ==================== 源 ruleLayer（crusadeconfig:1534-1626，静态化）====================
+; 源 layerColor ccc4(0,0,0,190) layerOrder=100（最顶层）；17 条文本 fill（RuleItem1-17）
+[node name="RuleLayer" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="RuleShade" type="ColorRect" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.745098)
+mouse_filter = 0
+
+; 源 ruleInfo（main_vit_tips 103×61px Scale9 cap(15,20,45,15) → L15/T26/R43/B20 批 1
+; 公式，550×360 中心 to_godot(400,240)=(480,320)）
+[node name="RuleFrame" type="NinePatchRect" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 125.0
+offset_top = 60.0
+offset_right = 675.0
+offset_bottom = 420.0
+texture = ExtResource("20_vit")
+patch_margin_left = 12
+patch_margin_top = 20
+patch_margin_right = 34
+patch_margin_bottom = 16
+mouse_filter = 2
+
+; 源 heroInfo（pvp_tip_title_bg 474×44px/CS×(1.3,1.1)=480.94×37.77 中心局部 (275,320) →
+; Godot (480,180)）
+[node name="RuleTitleBg" type="TextureRect" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 159.53
+offset_top = 81.11
+offset_right = 640.47
+offset_bottom = 118.89
+texture = ExtResource("21_pvp")
+expand_mode = 1
+mouse_filter = 2
+
+; 源标题 Label（BURNING_CRUSADE size22 ccc3(251,206,16) 局部 (270,320) → (475,180)）
+[node name="RuleTitleLabel" type="Label" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 295.0
+offset_top = 86.0
+offset_right = 495.0
+offset_bottom = 114.0
+theme_override_colors/font_color = Color(0.984314, 0.807843, 0.062745, 1)
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; 源 closeRuleInfo（close_1 65×66px/CS=50.73×51.52 中心局部 (534,340) → Godot (739,160)）
+[node name="RuleCloseBtn" type="TextureButton" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 633.63
+offset_top = 54.24
+offset_right = 684.37
+offset_bottom = 105.76
+texture_normal = ExtResource("22_close")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 源 listview（cliprect CCRectMake(140,90,500,250) → Godot (220,220)-(720,470)）
+[node name="RuleScroll" type="ScrollContainer" parent="RuleLayer"]
+unique_name_in_owner = true
+layout_mode = 3
+offset_left = 140.0
+offset_top = 140.0
+offset_right = 640.0
+offset_bottom = 390.0
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="RuleVBox" type="VBoxContainer" parent="RuleLayer/RuleScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+mouse_filter = 2
+
+; 源 initRuleLayer 17 项（crusade.lua:543-595）：1-6 叙事 dark_white、7 空、8-15 战斗
+; 规则 normalButton、16-17 空；文本 fill（_fill_rule_texts 剥富文本壳）
+[node name="RuleItem1" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem2" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem3" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem4" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem5" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem6" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 0.866667, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem7" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="RuleItem8" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem9" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem10" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem11" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem12" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem13" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem14" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem15" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.937255, 0.772549, 0.47451, 1)
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 2
+
+[node name="RuleItem16" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="RuleItem17" type="Label" parent="RuleLayer/RuleScroll/RuleVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_font_sizes/font_size = 18

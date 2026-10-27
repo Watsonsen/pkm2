@@ -1,0 +1,47 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Pokemon Expedition"
+config/description="基于全国图鉴与种族值的宝可梦编队卡牌游戏"
+run/main_scene="res://scenes/hero/hero_scene.tscn"
+config/quit_on_go_back=false
+config/features=PackedStringArray("4.7")
+
+[autoload]
+
+MCPBridge="*res://mcp_bridge.gd"
+Events="*res://scripts/autoload/events.gd"
+SceneManager="*res://scripts/autoload/scene_manager.gd"
+Toast="*res://scripts/autoload/toast.gd"
+GameData="*res://scripts/autoload/game_data.gd"
+AudioPlayer="*res://scripts/autoload/audio_player.gd"
+HudOverlay="*res://scripts/autoload/hud_overlay.gd"
+ThemeManager="*res://scripts/autoload/theme_manager.gd"
+
+[display]
+
+window/size/viewport_width=800
+window/size/viewport_height=480
+window/size/window_width_override=1600
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/godot_mcp_server/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.031, 0.067, 0.122, 1)

@@ -1,0 +1,413 @@
+class_name HeroManager
+extends RefCounted
+
+## 英雄管理（Logic 层）：拥有英雄集合 + 升星/分解/碎片合成。
+## 消耗规则查 HeroStars / Fragment 表（ConfigManager）。金币与碎片由本管理器持有，
+## 持久化由 2.4 PlayerData 接管。
+
+var config: ConfigManager
+var heroes: Dictionary = {}   # inst_id(int) -> HeroInstance
+# 碎片/魂石计数（源 equip_qunty 单容器语义）：与宿主 PlayerData.items 同一字典引用
+#（PlayerData._init / serde from_dict 注入；独立 new 时为自身字典）。2026-09-09 根修
+# 魂石双账本脱节——获得路径 add_item 写 items 而读侧走独立 fragments 致英雄详情不体现。
+var items: Dictionary = {}
+var gold: int = 0
+var next_id: int = 1
+var hero_cache: Dictionary = {}  # tid(int) -> {pre_exp,pre_level,exp_increment}（源 ed.player.heroCache，结算升级动画用，player.lua:1977-1982）
+
+const MAX_EQUIP_RANK: int = 23  # 玩家装备 rank 进阶上限（源服务端 main.lua:1563 maxRank=parameter.unit_max_rank=23，
+                                # bf5c0cc 扩 Red+5 时由 22 改 23；player.lua:2066 canUpgrade 的 `<22` 是从未被调用的
+                                # 死代码断言，2026-10-08 前误照译致 rank22→23 卡死、满阶"+5"不可达）
+const EQUIP_SLOT_COUNT: int = 6  # 装备槽数（源 player._items 1-6，本项目 equip_slots 0-5）
+const GS_ROUND: float = 0.5  # 战力取整（源 recalcHeroGs math.floor(gs+0.5) 四舍五入）
+const SKILL_SLOT_MIN: int = 4  # 技能等级槽下限（源 addHero {1,1,1,1}；技能升级 UI 固定 4 格）
+
+func _init(cm: ConfigManager) -> void:
+	config = cm
+
+## 图鉴记录钩子（PlayerData 注入；null 时跳过）。获得新英雄的图鉴记录统一下沉到
+## add_hero——抽卡/碎片合成/碎片召唤三条路径曾漏记致图鉴进度永久偏低（2026-09-28 审查 P1-7）。
+var handbook: Variant = null
+
+## 添加英雄（首次获得），返回实例 id。stars 取 Unit.Initial Stars。
+func add_hero(tid: int) -> int:
+	var data := HeroData.from_config(config, tid)
+	var hero := HeroInstance.new(tid, data.initial_stars, next_id)
+	_init_skill_levels(hero)
+	recalc_hero_gs(hero)
+	heroes[next_id] = hero
+	next_id += 1
+	if handbook != null:
+		handbook.record_hero(tid)
+	return hero.inst_id
+
+
+## 技能等级初始化（源 player.lua:1502-1506：skill_levels[i] = SkillGroup[tid][i]["Init Level"]；
+## 源 addHero 只填 slot 1-4 是单机化数据截断——Kael/TitanHead/SilverDragon 等多槽英雄
+## slot 5+ 拿不到等级不装配，玩家 Kael 只剩冰墙/冰冻两控制技无限循环 → 0 伤害，
+## 2026-10-07 根修为按 SkillGroup 全槽初始化）。
+## Coco slot 1-4 InitLevel = 1/1/21/41；显示等级 = skill_levels-InitLevel+1（统一初始 lv.1）。
+## 高阶技能 InitLevel 高，等级上限检查 skill_levels[idx]>=hero.level 自然拦住低级英雄升高级技能。
+func _init_skill_levels(hero: HeroInstance) -> void:
+	var sg: Dictionary = config.get_raw_table(&"SkillGroup").get(str(hero.tid), {})
+	var slot_count: int = maxi(SKILL_SLOT_MIN, sg.size())
+	hero.skill_levels.resize(slot_count)
+	for i in slot_count:
+		var slot_info: Dictionary = sg.get(str(i + 1), {})
+		hero.skill_levels[i] = int(slot_info.get("Init Level", 1))
+
+
+## 旧档技能等级补齐（存量档 skill_levels 只有 4 元素，源单机化截断同上）：按 SkillGroup
+## 槽数 append 缺槽的 Init Level，已有槽位（含玩家升过的等级）不动。
+## static + cm 传参：from_dict（static）需调用，GDScript 静态上下文禁调实例方法/实例变量。
+static func _ensure_skill_slots(hero: HeroInstance, cm: ConfigManager) -> void:
+	var sg: Dictionary = cm.get_raw_table(&"SkillGroup").get(str(hero.tid), {})
+	while hero.skill_levels.size() < sg.size():
+		var i: int = hero.skill_levels.size()
+		var slot_info: Dictionary = sg.get(str(i + 1), {})
+		hero.skill_levels.append(int(slot_info.get("Init Level", 1)))
+
+func get_hero(inst_id: int) -> HeroInstance:
+	return heroes.get(inst_id) as HeroInstance
+
+
+## 已拥有英雄的 inst_id 列表（字典插入序 = 获得顺序）。注意：英雄列表/详情翻页显示序
+## 走 ReadheroHandbook.order_heroes（等级→星级→rank 降序），不是本函数（2026-09-14 翻页
+## 顺序根修后不再有 View 消费方，仅测试取"任意拥有英雄"用）。
+func get_owned_hero_ids() -> Array:
+	return heroes.keys()
+
+## 升星：消耗专属碎片 × HeroStars.Upgrade Fragments + 金币 Upgrade Price；达 max_stars 不可升。
+func evolve(inst_id: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null:
+		return false
+	var data := HeroData.from_config(config, hero.tid)
+	if hero.stars >= data.max_stars:
+		return false
+	var frag_id := config.get_int(&"Fragment", hero.tid, &"Fragment ID")
+	# HeroStars[k] = 升到 k 星的花费（源 controller.getHeroEvolveStoneNeed/Cost :236-248
+	# 读 stars+1 行；2026-09-09 修 off-by-one——旧读 stars 行 = 上一档已付花费，1→2 星扣 0 白嫖）
+	var cost_frags := config.get_int(&"HeroStars", hero.stars + 1, &"Upgrade Fragments")
+	var cost_gold := config.get_int(&"HeroStars", hero.stars + 1, &"Upgrade Price")
+	if _fragment_count(frag_id) < cost_frags or gold < cost_gold:
+		return false
+	_add_fragment(frag_id, -cost_frags)
+	gold -= cost_gold
+	hero.stars += 1
+	recalc_hero_gs(hero)   # 星级改变成长属性 → 重算战力
+	return true
+
+
+## 按 tid 查已有英雄实例（源 ed.player.heroes[tid]）。
+func find_hero_by_tid(tid: int) -> HeroInstance:
+	for hero in heroes.values():
+		if (hero as HeroInstance).tid == tid:
+			return hero
+	return null
+
+
+## hero_evolve 统一入口（源 local_server.lua:905-987）：按英雄存在性分流。
+## 已有英雄 → 升星（evolve）；未拥有 → 新英雄召唤（add_hero + Summon Fragments/Price）。
+## 返 {ok:bool, inst_id:int}（召唤时返新 inst_id）。
+func hero_evolve(tid: int) -> Dictionary:
+	var existing := find_hero_by_tid(tid)
+	if existing != null:
+		return {"ok": evolve(existing.inst_id), "inst_id": existing.inst_id}
+	# 新英雄召唤：读 HeroStars[initial_stars] Summon Fragments + Summon Price
+	var data := HeroData.from_config(config, tid)
+	var frag_id := config.get_int(&"Fragment", tid, &"Fragment ID")
+	var cost_frags := config.get_int(&"HeroStars", data.initial_stars, &"Summon Fragments")
+	var cost_gold := config.get_int(&"HeroStars", data.initial_stars, &"Summon Price")
+	if _fragment_count(frag_id) < cost_frags or gold < cost_gold:
+		return {"ok": false, "inst_id": 0}
+	_add_fragment(frag_id, -cost_frags)
+	gold -= cost_gold
+	var new_id := add_hero(tid)
+	return {"ok": true, "inst_id": new_id}
+
+## 分解预览（照源 split 返还碎片）：返 {fragment_id, count}，不执行。供 splitwindow 显示返还详情。
+func preview_split(inst_id: int) -> Dictionary:
+	var hero := get_hero(inst_id)
+	if hero == null:
+		return {}
+	var convert_count := config.get_int(&"HeroStars", hero.stars, &"Convert Fragments")
+	var frag_id := config.get_int(&"Fragment", hero.tid, &"Fragment ID")
+	return {"fragment_id": frag_id, "count": convert_count}
+
+
+## 分解：返还 HeroStars.Convert Fragments 数量的专属碎片，移除英雄。
+func split(inst_id: int) -> Dictionary:
+	var hero := get_hero(inst_id)
+	if hero == null:
+		return {}
+	var preview := preview_split(inst_id)
+	heroes.erase(inst_id)
+	_add_fragment(preview["fragment_id"], preview["count"])
+	return preview
+
+## 碎片合成：消耗 Fragment 表配方的专属+通用碎片+金币，获得目标英雄。
+## 校验 frag_have + min(uni_have, uni_need) >= frag_need；已有英雄拒绝（:138）；金币不足单机化降级（:132 不弹 useMidas 点金手）。
+func compose(target_tid: int) -> bool:
+	if not config.has_entry(&"Fragment", target_tid):
+		return false
+	for inst_id in heroes:
+		if (heroes[inst_id] as HeroInstance).tid == target_tid:
+			return false
+	var frag_id := config.get_int(&"Fragment", target_tid, &"Fragment ID")
+	var frag_need := config.get_int(&"Fragment", target_tid, &"Fragment Count")
+	var uni_id := config.get_int(&"Fragment", target_tid, &"Universal Fragment ID")
+	var uni_need := config.get_int(&"Fragment", target_tid, &"Universal Fragment Count")
+	var expense := config.get_int(&"Fragment", target_tid, &"Expense")
+	var frag_have := _fragment_count(frag_id)
+	var uni_have := _fragment_count(uni_id)
+	var uni_avail: int = min(uni_have, uni_need)
+	if frag_have + uni_avail < frag_need:
+		return false
+	if gold < expense:
+		return false
+	var frag_use: int = min(frag_have, frag_need)
+	var uni_use: int = max(0, frag_need - frag_have)
+	_add_fragment(frag_id, -frag_use)
+	_add_fragment(uni_id, -uni_use)
+	gold -= expense
+	add_hero(target_tid)
+	return true
+
+## 进阶条件（照源运行时门槛：UI canHeroUpgrade :688-699 槽非空 + doClickUpgrade :706-716
+## isEquiped/canWear 放行 + main.lua:1561 服务端仅校验 rank<max）：6 槽全非空 + rank<上限。
+## 已穿任意装备即过，不比对配方 ID——player.lua:2058 canUpgrade 的"已穿==配方"是
+## 从未被调用的死代码断言（EDDebug），2026-09-14 误照译修正（用户存档六槽全穿被拒）。
+func can_upgrade_rank(inst_id: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null:
+		return false
+	if hero.rank >= MAX_EQUIP_RANK:
+		return false
+	# rank 12+ 配方槽位递减（12-16 五槽/17-19 四槽/20-23 三槽，源 bf5c0cc gen_hero_equip.py 设计）：
+	# 无配方槽（Equip{i} ID=0）不构成进阶条件——源服务端 main.lua:1561 仅校验 rank<上限，
+	# 6 槽全满是全槽时代遗留，照译致金红阶（金+1~红+5）永久卡死（2026-10-06 修）。
+	var rank_equip: Dictionary = config.get_raw_table(&"Hero_equip").get(str(hero.tid), {}).get(str(hero.rank), {})
+	for slot in range(EQUIP_SLOT_COUNT):
+		if int(rank_equip.get("Equip" + str(slot + 1) + " ID", 0)) <= 0:
+			continue
+		if int(hero.equip_slots[slot]) <= 0:
+			return false
+	return true
+
+
+## 进阶（照源 player.lua:2069 upgrade）：canUpgrade 校验 → rank+1 → 重置 6 槽（_items={_item_id=0,_exp=0}）
+## → 自动穿 hero_equip[tid][new_rank]["Init{i} ID"]。源 100% 成功（upgrade 无 addMoney 金币消耗）。
+## 单机化照源不接 net reply；addExp(0) 触发属性重算由 add_hero_exp 入口衔接（此处不调）。
+func upgrade_rank(inst_id: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null or not can_upgrade_rank(inst_id):
+		return false
+	hero.rank += 1
+	var rank_equip: Dictionary = config.get_raw_table(&"Hero_equip").get(str(hero.tid), {}).get(str(hero.rank), {})
+	for slot in range(EQUIP_SLOT_COUNT):
+		hero.equip_slots[slot] = int(rank_equip.get("Init" + str(slot + 1) + " ID", 0))
+		hero.equip_exp[slot] = 0.0
+	recalc_hero_gs(hero)
+	return true
+
+
+## 战斗力重算（单一事实来源，2026-09-08 定稿）：hero.gs = 战斗单位全属性加权 gs
+## （源 recalcHeroGs=UnitCreate 属性加权，源登录后 main.lua:1106/强化后 :1236/战斗结算后
+## player.lua:1363 均以该值覆盖增量近似值）。废除旧近似公式 calc_gs（5+Σ Equip.GS×EquipLevel+
+## 技能×10——不含等级/星级/附魔强化，升级升星附魔均不反映）；现在一切进 rebuild 属性的养成
+## （等级/星级/rank/装备/附魔强化/被动/觉醒）自动反映，新增养成无需记得改战力公式。
+func recalc_hero_gs(hero: HeroInstance) -> void:
+	var u := BattleUnit.new(hero.to_battle_proto(), BattleEngine.CAMP_PLAYER, {"estimate_rank": false}, config)
+	hero.gs = int(floor(u.gs + GS_ROUND))
+
+
+## 英雄加经验升级（照源 player.lua:1972-2010 addExp）：入口快照 hero_cache + 循环 Levels.Exp 累减升级。
+## levelup_exp<=0（Levels 末位/缺失）自然停。返是否升过级。
+## 单机化：源满级截断分支（else: hc.expIncrement 调整 + exp=levelup_exp）依赖 playerlimit.heroLevelLimit，
+## 本项目 playerlimit 未接入，英雄无硬上限（靠 Levels 表末位停），照源不接满级截断。
+func add_hero_exp(inst_id: int, exp: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null or exp <= 0:
+		return false
+	var oexp: int = hero.exp
+	var olevel: int = hero.level
+	hero.exp += exp
+	var hc: Dictionary = hero_cache.get(hero.tid, {})
+	hc["pre_exp"] = oexp
+	hc["pre_level"] = olevel
+	hc["exp_increment"] = exp
+	hero_cache[hero.tid] = hc
+	var leveled: bool = false
+	var levels: Dictionary = config.get_raw_table(&"Levels")
+	while true:
+		var levelup_exp: int = int(levels.get(str(hero.level), {}).get(&"Exp", 0))
+		if levelup_exp <= 0 or hero.exp < levelup_exp:
+			break
+		hero.exp -= levelup_exp
+		hero.level += 1
+		leveled = true
+	if leveled:
+		recalc_hero_gs(hero)   # 等级改变成长属性 → 重算战力（源靠战斗结算后 recalcHeroGs 兜底，此处入口直算）
+	return leveled
+
+
+## 装备强化移至 PlayerData.enhance_equip（照源 ed.player 统一入口，材料 Enhance Value 经验 +
+## Unit Price 金币双消耗，退役旧版"扣 Price 金币买跳级"偏离源实现）。
+
+
+## 技能升级（照源 skillstren.lua:144 doClickLvupButton + player.lua:697 strenHeroSkill）。
+## 限制：① skill_levels[idx] >= hero.level 拒绝（源 :155 skl>=hlv，技能等级不可超英雄等级）
+##      ② gold < SkillLevels[level].Price 拒绝（源 :157 cost>money）
+## 扣 gold（源 :167 addMoney）+ skill_levels[idx]+1（源 strenHeroSkill）。
+## 技能点由 player_data.upgrade_hero_skill 扣（源 net.lua:12 addSkillPoint）。
+func upgrade_skill_level(inst_id: int, skill_idx: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null or skill_idx < 0 or skill_idx >= hero.skill_levels.size():
+		return false
+	var cur_level: int = hero.skill_levels[skill_idx]
+	if cur_level >= hero.level:
+		return false
+	var cost: int = _get_skill_upgrade_cost(cur_level)
+	if gold < cost:
+		return false
+	gold -= cost
+	hero.skill_levels[skill_idx] += 1
+	recalc_hero_gs(hero)
+	return true
+
+
+## 技能升级金币消耗（照源 skillstren.lua:469 getCost = SkillLevels[level].Price）。
+## level 越界 fallback 末位/首位（源 t[level] or t[#t] or t[1]）。
+func _get_skill_upgrade_cost(cur_level: int) -> int:
+	var t: Dictionary = config.get_raw_table(&"SkillLevels")
+	var entry: Dictionary = t.get(str(cur_level), {})
+	if entry.is_empty():
+		entry = t.get(str(t.size()), t.get("1", {}))
+	return int(entry.get(&"Price", 0))
+
+
+## 装备穿戴（照源 main.lua:1750 wear_equip + player.lua:2061 canUpgrade requirement）：
+## 查该 rank 该槽应穿装备 → 客户端 hero._items[slot]=newItemId 落地。**不传 item_id（目标由 hero_equip
+## 表 rank 决定）、不扣背包（材料在 equipcraft 合成时消耗）、不校验 level/rank（合成时保证）**。
+## slot 本项目 0-5 → 源 1-6（"Equip{slot+1} ID"）。
+func wear_equip(inst_id: int, slot: int) -> bool:
+	var hero := get_hero(inst_id)
+	if hero == null or slot < 0 or slot >= EQUIP_SLOT_COUNT:
+		return false
+	var rank_equip: Dictionary = config.get_raw_table(&"Hero_equip").get(str(hero.tid), {}).get(str(hero.rank), {})
+	var item_id: int = int(rank_equip.get("Equip" + str(slot + 1) + " ID", 0))
+	if item_id <= 0:
+		return false
+	hero.equip_slots[slot] = item_id
+	recalc_hero_gs(hero)
+	return true
+
+func _fragment_count(frag_id: int) -> int:
+	return int(items.get(frag_id, 0))
+
+
+## 碎片可合成查询（照源 readequip.lua:810-840 isFragmentEnough + createIconWithTag :855-861）。
+## 专属碎片持有 >= Fragment Count 且未拥有该英雄时返 true（背包图标 fragment_tick 角标用）。
+## 仅判专属（源 createIconWithTag 同），不含通用补足（compose 的"专属+通用"更宽，角标照源只看专属，差异保留）。
+func is_fragment_composable(tid: int) -> bool:
+	var row: Dictionary = config.get_raw_table(&"Fragment").get(str(tid), {})
+	if row.is_empty():
+		return false
+	var frag_id: int = int(row.get(&"Fragment ID", 0))
+	var need: int = int(row.get(&"Fragment Count", 0))
+	for inst_id in heroes:
+		if (heroes[inst_id] as HeroInstance).tid == tid:
+			return false
+	return _fragment_count(frag_id) >= need
+
+
+func _add_fragment(frag_id: int, delta: int) -> void:
+	items[frag_id] = _fragment_count(frag_id) + delta
+
+
+## 添加碎片（抽卡/副本奖励产出公开入口；包装 _add_fragment + 入口校验）。
+func add_fragment(frag_id: int, count: int) -> void:
+	if frag_id <= 0 or count <= 0:
+		return
+	_add_fragment(frag_id, count)
+
+
+## 查碎片数（公开入口；觉醒养成 AwakeHelper.can_awake_with_count 用）。
+func fragment_count(frag_id: int) -> int:
+	return _fragment_count(frag_id)
+
+
+## 扣碎片（单机化觉醒激活用；不足返 false，不部分扣）。
+func spend_fragment(frag_id: int, count: int) -> bool:
+	if frag_id <= 0 or count <= 0:
+		return false
+	if _fragment_count(frag_id) < count:
+		return false
+	_add_fragment(frag_id, -count)
+	return true
+
+## 序列化（持久化用，入口 int 校验）。
+func to_dict() -> Dictionary:
+	var heroes_data: Array[Dictionary] = []
+	for inst_id in heroes:
+		var h: HeroInstance = heroes[inst_id]
+		heroes_data.append({
+			"inst_id": inst_id, "tid": h.tid, "rank": h.rank,
+			"level": h.level, "stars": h.stars, "exp": h.exp,
+			"skill_levels": h.skill_levels,
+			"equip_slots": h.equip_slots,
+			"equip_exp": h.equip_exp,
+			"gs": h.gs,
+			"awake": h.awake,
+		})
+	return {"gold": gold, "heroes": heroes_data, "next_id": next_id, "hero_cache": hero_cache.duplicate(true)}
+
+
+## 加金币（源 player.lua:434 addMoney：math.max(_money+money, 0)，非负保护）。
+func add_money(amount: int) -> void:
+	gold = maxi(0, gold + amount)
+
+
+## 从字典重建（入口 int 校验，治存档 float→int）。
+static func from_dict(data: Dictionary, cm: ConfigManager) -> HeroManager:
+	var mgr := HeroManager.new(cm)
+	mgr.gold = int(data.get("gold", 0))
+	mgr.next_id = int(data.get("next_id", 1))
+	# fragments 独立容器已退役（2026-09-09 单账本根修）：旧档该字段由
+	# PlayerDataSerde.from_dict 迁移并入 pd.items，此处不读。
+	var heroes_list: Array = data.get("heroes", [])
+	for h in heroes_list:
+		var hd: Dictionary = h
+		var hero := HeroInstance.new(int(hd["tid"]), int(hd["stars"]), int(hd["inst_id"]))
+		hero.rank = int(hd.get("rank", 1))
+		hero.level = int(hd.get("level", 1))
+		hero.exp = int(hd.get("exp", 0))
+		var sl: Array = hd.get("skill_levels", [1, 1, 1, 1])
+		hero.skill_levels = []
+		for j in range(sl.size()):
+			hero.skill_levels.append(int(sl[j]))   # 入口 int 校验（治存档 float→int）
+		_ensure_skill_slots(hero, cm)   # 旧档 4 元素补齐多槽英雄缺槽（2026-10-07 召唤师 0 伤害根修）
+		var es: Array = hd.get("equip_slots", [0, 0, 0, 0, 0, 0])
+		for j in range(hero.equip_slots.size()):
+			if j < es.size():
+				hero.equip_slots[j] = int(es[j])
+		var ee: Array = hd.get("equip_exp", [])
+		for j in range(hero.equip_exp.size()):
+			if j < ee.size():
+				hero.equip_exp[j] = float(ee[j])
+		hero.gs = 0   # 占位；函数尾部全量重算统一赋真值（旧存档 gs 为近似公式脏值，读档即修正）
+		hero.awake = bool(hd.get("awake", false))
+		mgr.heroes[hero.inst_id] = hero
+	var hc_data: Dictionary = data.get("hero_cache", {})
+	for tid in hc_data:
+		var src: Dictionary = hc_data[tid]
+		var dst: Dictionary = {}
+		dst["pre_exp"] = int(src.get("pre_exp", 0))
+		dst["pre_level"] = int(src.get("pre_level", 0))
+		dst["exp_increment"] = int(src.get("exp_increment", 0))
+		mgr.hero_cache[int(tid)] = dst
+	# 读档后全量重算战力（照源登录后 recalcHeroGs 全量覆盖 main.lua:1106-1111）
+	for hero in mgr.heroes.values():
+		mgr.recalc_hero_gs(hero as HeroInstance)
+	return mgr

@@ -1,0 +1,241 @@
+[gd_scene format=3 uid="uid://uffxere2me65"]
+
+[ext_resource type="Texture2D" uid="uid://cyp7cmum3jqk5" path="res://assets/ui/alpha/HVGA/lettherebelight.png" id="1_light"]
+[ext_resource type="Script" uid="uid://xbkoy85150hb" path="res://scripts/view/battle/stage_done_scene.gd" id="1_stage_done"]
+[ext_resource type="Texture2D" uid="uid://gpy06sp5lba7" path="res://assets/ui/alpha/HVGA/star_left.png" id="2_star1"]
+[ext_resource type="Texture2D" uid="uid://cju25r5fkgfjq" path="res://assets/ui/alpha/HVGA/star_center.png" id="3_star2"]
+[ext_resource type="Texture2D" uid="uid://1uxhhscc1nrb" path="res://assets/ui/alpha/HVGA/star_right.png" id="4_star3"]
+[ext_resource type="Texture2D" uid="uid://dp1n5y1cfv6hw" path="res://assets/ui/alpha/HVGA/replaybtn.png" id="5_replay"]
+[ext_resource type="Texture2D" uid="uid://dr141610icpvl" path="res://assets/ui/alpha/HVGA/replaybtn-disabled.png" id="6_replayp"]
+[ext_resource type="Texture2D" uid="uid://nqnk2glp2ijf" path="res://assets/ui/alpha/HVGA/nextstagebtn.png" id="7_next"]
+[ext_resource type="Texture2D" uid="uid://8ifnen30lw0h" path="res://assets/ui/alpha/HVGA/nextstagebtn-disabled.png" id="8_nextp"]
+[ext_resource type="Texture2D" uid="uid://b4qm7l2nsoa1g" path="res://assets/ui/alpha/HVGA/bigyellowbar.png" id="9_infobg"]
+[ext_resource type="Texture2D" uid="uid://h3eub2s1sb16" path="res://assets/ui/alpha/HVGA/wing_win_bg_1.png" id="10_top1"]
+[ext_resource type="Texture2D" uid="uid://n3ipftphrx2i" path="res://assets/ui/alpha/HVGA/wing_win_bg_2.png" id="11_top2"]
+[ext_resource type="Texture2D" uid="uid://dbmhu8lfn3m4x" path="res://assets/ui/alpha/HVGA/yellowbar_win_bg.png" id="12_title1"]
+[ext_resource type="Texture2D" uid="uid://cpyfjvblmhjg2" path="res://assets/ui/alpha/HVGA/shadow_win_bg.png" id="13_title2"]
+[ext_resource type="Texture2D" uid="uid://s4de6u60hqct" path="res://assets/ui/alpha/HVGA/goldicon_small.png" id="14_gold"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_lv"]
+font_size = 18
+font_color = Color(0.662745, 0.27451, 0.023529, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_gold"]
+font_size = 19
+font_color = Color(0.662745, 0.27451, 0.023529, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_exp"]
+font_size = 19
+font_color = Color(0.662745, 0.27451, 0.023529, 1)
+
+[node name="StageDoneScene" type="Control" unique_id=193704999]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 800.0
+offset_bottom = 480.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_stage_done")
+
+[node name="Bg" type="TextureRect" parent="." unique_id=1071425880]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+
+[node name="Shelter" type="ColorRect" parent="." unique_id=605151113]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.588235)
+
+[node name="Light" type="Sprite2D" parent="." unique_id=762288245]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+position = Vector2(372.0, 80.0)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("1_light")
+
+[node name="Star1" type="Sprite2D" parent="." unique_id=1584956854]
+unique_name_in_owner = true
+z_index = 100
+position = Vector2(260.0, 78.0)
+scale = Vector2(1e-05, 1e-05)
+texture = ExtResource("2_star1")
+
+[node name="Star2" type="Sprite2D" parent="." unique_id=980427014]
+unique_name_in_owner = true
+z_index = 101
+position = Vector2(378.333, 69.75)
+scale = Vector2(1e-05, 1e-05)
+texture = ExtResource("3_star2")
+
+[node name="Star3" type="Sprite2D" parent="." unique_id=1976436254]
+unique_name_in_owner = true
+z_index = 102
+position = Vector2(488.333, 78.0)
+scale = Vector2(1e-05, 1e-05)
+texture = ExtResource("4_star3")
+
+[node name="InfoBg" type="TextureRect" parent="." unique_id=1337558394]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+offset_left = 95.8
+offset_top = 108.7
+offset_right = 664.2
+offset_bottom = 455.3
+mouse_filter = 2
+stretch_mode = 0
+expand_mode = 1
+texture = ExtResource("9_infobg")
+
+[node name="TopWinBg1" type="Sprite2D" parent="InfoBg" unique_id=1662719642]
+position = Vector2(285.2, -33.7)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("10_top1")
+
+[node name="TopWinBg2" type="Sprite2D" parent="InfoBg" unique_id=1574907406]
+position = Vector2(285.2, -33.7)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("11_top2")
+
+; TitleBg 双条 z_index=0 对齐源表格声明序（条先文字后，条垫 lv/gold/exp 文字下；
+; 英雄卡行源 z=10 画 info_bg 全部之上——CG2 同 z 树序 HeroHost 在后等价。旧 z=1 曾把
+; 半透明 shadow_win_bg 抬到 EXP 文字/卡行上成叠字，2026-08-28 头像÷CS 专项根修）。
+[node name="InfoTitleBg2" type="Sprite2D" parent="InfoBg" unique_id=1332038426]
+position = Vector2(285.2, 148.3)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("13_title2")
+
+[node name="InfoTitleBg1" type="Sprite2D" parent="InfoBg" unique_id=1262789858]
+position = Vector2(285.2, 51.3)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("12_title1")
+
+[node name="GoldIcon" type="Sprite2D" parent="InfoBg" unique_id=963062940]
+position = Vector2(304.2, 50.3)
+scale = Vector2(0.780488, 0.780488)
+texture = ExtResource("14_gold")
+
+[node name="ExpIcon" type="Sprite2D" parent="InfoBg" unique_id=1214630530]
+position = Vector2(190.2, 51.3)
+scale = Vector2(0.780488, 0.780488)
+
+[node name="Lv" type="Label" parent="InfoBg" unique_id=789345339]
+unique_name_in_owner = true
+offset_left = 60.2
+offset_top = 41.3
+offset_right = 160.2
+offset_bottom = 61.3
+text = "LV 1"
+label_settings = SubResource("LabelSettings_lv")
+
+[node name="Gold" type="Label" parent="InfoBg" unique_id=762184030]
+unique_name_in_owner = true
+offset_left = 334.2
+offset_top = 41.3
+offset_right = 424.2
+offset_bottom = 61.3
+text = "+0"
+label_settings = SubResource("LabelSettings_gold")
+
+[node name="Exp" type="Label" parent="InfoBg" unique_id=1217841582]
+unique_name_in_owner = true
+offset_left = 229.2
+offset_top = 41.3
+offset_right = 319.2
+offset_bottom = 61.3
+text = "+0"
+label_settings = SubResource("LabelSettings_exp")
+
+; 2026-09-04 根修：源 battleStatistNode 无 parent 字段（readnode.lua:277 → 挂 mainLayer），
+; (530,320) 是全屏坐标 anchor(0,0.5) → Godot 全局 (530,135)~(600,185)，中心线 y=160 与
+; 淡黄条/lv/gold 同线（源全屏 Cocos 320 ≈ lv label 319.7）。旧值 530.2/1.3 系把全屏坐标误当
+; InfoBg 局部坐标直填 → 全局 (626,110) 偏右 95.8 压面板右缘、偏上 25。换算局部 = 全局 −
+; InfoBg 原点 (95.8,108.7)。
+[node name="BattleStatistBtn" type="Button" parent="InfoBg" unique_id=313899263]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+z_index = 2
+offset_left = 434.2
+offset_top = 26.3
+offset_right = 504.2
+offset_bottom = 76.3
+
+[node name="BattleCount" type="Label" parent="InfoBg/BattleStatistBtn" unique_id=2079246851]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "数据"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Replay" type="TextureButton" parent="." unique_id=2145971126]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_left = 660.05
+offset_top = 117.375
+offset_right = 759.95
+offset_bottom = 213.375
+texture_normal = ExtResource("5_replay")
+texture_pressed = ExtResource("6_replayp")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="Next" type="TextureButton" parent="." unique_id=1231073365]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_left = 660.05
+offset_top = 332.625
+offset_right = 759.95
+offset_bottom = 428.625
+texture_normal = ExtResource("7_next")
+texture_pressed = ExtResource("8_nextp")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="HeroHost" type="Control" parent="." unique_id=1891025862]
+; 源 hero_ori=(195,243) CCSprite 中心锚点（container 104×104，Cocos 左下原点）→ Godot 左上
+; = (195-52, 480-243-52) = (143,185)（2026-08-28 头像÷CS 专项源直译；旧 (195,237) 系中心
+; 坐标当左上直抄，整行偏右下 52 点，第 5 卡 gap110 累计溢面板右缘 75 点）。
+; 2026-09-04 设计调整：源直译 185 时 frame(208.5~291.5) 贴死灰板可见带顶（下隙 0/上隙 21.5），
+; portrait 区贴 container 底致视觉沉底。上移 11 → frame 197.5~280.5 居中于淡黄条底(187)与
+; 灰板带顶(291)之间；EXP 文字配套常量见 stage_done_scene.gd HERO_EXP_LABEL_CENTER。
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 143.0
+offset_top = 174.0
+offset_right = 143.0
+offset_bottom = 174.0
+mouse_filter = 2
+
+[node name="LootHost" type="Control" parent="." unique_id=1814744843]
+; 源 loot_ori=(200,100) 中心锚点（ReadequipIcon container 72×72）→ Godot 左上 =
+; (200-36, 480-100-36) = (164,344)（同 HeroHost 中心当左上直译病，2026-08-28 一并根修）。
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 164.0
+offset_top = 344.0
+offset_right = 164.0
+offset_bottom = 344.0
+mouse_filter = 2

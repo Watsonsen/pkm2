@@ -1,0 +1,518 @@
+class_name StageSelectPanel
+extends PopWindow
+
+## 关卡选择（View 层）— 照源 stageselect.lua 地图式布局翻译。
+## 两件套（批3 Task 5，2026-08-16）：静态底板（bg/close/mode toggle/箭头/挂载层）在
+## stage_select_content.tscn；动态层（map layer 章节 bg+route+stage 圆点、frame/title、
+## chapter dots）由 stage_select_fills.gd 构造（原 StageSelectBuilder 317 行退役归并）。
+## doChangeChapter(:423)/createDot(:676)/createModeButton(:725)/setChapterButtonState(:643)。
+## 切换动画族（2026-07-30/31 补全，Task 5 保留不破坏）：章节切 map slide±720/title fade
+## （frame 章节不重建，照源 createFrame 仅 create/mode 调，行 325/1618）；mode 切 map
+## fadeOut 0.5 + frame/title/dots fade 0.2；持续 arrow 呼吸(:714-721) + pointer 浮动(:1308-1311)。
+
+const CONTENT_SCENE: PackedScene = preload("res://scenes/ui/stage_select_content.tscn")
+const StageSelectFills = preload("res://scripts/ui/stage_select_fills.gd")
+const StageDetailPanel = preload("res://scripts/ui/stage_detail_panel.gd")
+
+# createFrame:976/createTitle:908/refreshDot:671 CCFadeIn/Out 0.2 / createChapterButton:714 CCMoveTo 1s /
+# currentTag:1308 CCMoveTo 0.5s）。
+const MAP_SLIDE_TIME: float = 0.5
+const MAP_FADE_TIME: float = 0.5
+const LAYER_FADE_TIME: float = 0.2
+const MAP_SLIDE_DIST: float = 720.0
+const ARROW_BOB_TIME: float = 1.0
+const ARROW_BOB_DX: float = 10.0
+const POINTER_BOB_TIME: float = 0.5
+const POINTER_BOB_DY: float = 10.0
+# 源 stageselect.lua:1234-1237 CCFadeTo(1,0)+CCFadeTo(1,255)：1s 完全淡出↔1s 回满，周期 2s
+# （2026-08-22 巡检订正：旧 0.6s/0.3↔1.0 周期 1.2s 且不完全消失）。
+const MASK_BLINK_TIME: float = 1.0
+const MASK_ALPHA_MIN: float = 0.0
+const MASK_ALPHA_MAX: float = 1.0
+const META_FRAME: StringName = StageSelectFills.META_FRAME
+const META_TITLE: StringName = StageSelectFills.META_TITLE
+const META_POINTER: StringName = StageSelectFills.META_POINTER
+const META_BOBBED: StringName = &"ss_bobbed"
+const META_MASK: StringName = StageSelectFills.META_MASK
+const META_MASK_BLINKED: StringName = &"ss_mask_blinked"
+# 源 createStage :1331-1351 forGetWay 引导：tutorial_circle 呼吸圈（ScaleTo 0.65s 1↔1.35 循环，
+# sprite 中心锚）+ tutorial_finger 手指（anchor(0,1) 左上锚 @ccp(x-4,y+4) ↔ MoveTo (x+13.5,y-13.5)
+# 往返 0.65s；cocos y 翻转后=Godot 右下方向位移 (17.5,17.5)）。节点构建归 fills（两件套范式）。
+const META_GUIDE_CIRCLE: StringName = StageSelectFills.META_GUIDE_CIRCLE
+const META_GUIDE_FINGER: StringName = StageSelectFills.META_GUIDE_FINGER
+const GUIDE_SCALE_TIME: float = 0.65
+const GUIDE_SCALE_MAX: float = 1.35
+const GUIDE_FINGER_SHIFT: Vector2 = Vector2(17.5, 17.5)   # 源起终点位移 (x+13.5,y-13.5)-(x-4,y+4) 的 Godot 换算
+# 命中统一分发（2026-09-09）：源 doStageTouch began setScale(0.95) 按下反馈。
+const STAGE_PRESS_SCALE: float = 0.95
+# 动画期分发守卫容差（源 doStageTouch numberOfRunningActions/getOpacity 守卫的几何等价：
+# slide 期 layer.position.x 偏离 CLIP 基线 / fade 期 modulate.a < 1）。
+const STAGE_HIT_ANIM_EPS: float = 0.5
+
+var mgr: StageManager = null
+var player: PlayerData = null
+var rng: BattleRng = null
+var _current_chapter: int = 1
+var _pre_chapter: int = 1   # 切换前章节，算 map slide 方向（源 self.preChapter）
+var _mode: String = "normal"
+var _stage_buttons: Dictionary = {}   # sid -> TextureButton（_refresh_view 重建）
+# 命中统一分发的按下态（源 pressStageID：began 记目标+缩放，ended 触发后清空；
+# 章节切换层被 free 后经 is_instance_valid 兜底弃触）。
+var _pressed_stage_btn: TextureButton = null
+# 源 create :1585-1592 带 stage 参（createByStage 经装备获取途径跳入）：getWayStage 定位
+# 目标关 + forGetWay 引导态（目标关上呼吸圈+手指，:1331-1351）；0 = 非 GetWay。
+var _get_way_stage: int = 0
+var _content: Control = null
+var _map_host: Control = null
+var _frame_layer: Control = null
+var _dot_container: Control = null
+var _mode_buttons: Dictionary = {}   # mode -> TextureButton（.tscn %ModeXxxBtn）
+var _arrows_bobbing: bool = false
+
+
+func setup_panel(p_mgr: StageManager, p_player: PlayerData, p_rng: BattleRng) -> void:
+	hud_identity = "stageselect"   # T4：原 apply/remove override 样板上收基类
+	transparent_shade = true   # T4：原 shade 透明 hack 上收基类
+	mgr = p_mgr
+	player = p_player
+	rng = p_rng
+	# 初始章节 = min(进度章, 等级章)（源 :1449 normalInfo.chapter = math.min(getMaxNormalChapter(),
+	# playerlimit.maxChapter())；进度含 +1 语义，通关一章后定位下一章，等级不足压回）
+	_current_chapter = mini(mgr.get_max_chapter("normal"), _player_max_chapter()) if mgr != null else 1
+	_pre_chapter = _current_chapter
+	setup()
+	_build_content()
+
+
+# 获取途径跳转入口（main_scene.open_stage_select_by_stage 反射链终点）。源 createByStage
+# :1642-1664：按关卡类型设 mode（elite 掉落 → 精英地图）+ Stage Group 转 真 sid +
+# create(chapter, mode, stage) 带 stage 参 → getWayStage 关卡级定位 + forGetWay 引导态。
+# 旧实现只定位章节：精英关跳普通地图看不到目标关 + 落章后无任何目标指示（用户 2026-09-07
+# 报「去往正确的关卡没有实现」）。
+func setup_by_stage(p_mgr: StageManager, p_player: PlayerData, p_rng: BattleRng, stage_id: int) -> void:
+	hud_identity = "stageselect"   # 同 setup_panel 开头两行（2026-09-07 建本入口时漏抄——
+	transparent_shade = true       # identity 空 → 纯弹窗语义误遮 HUD + shade 不透明，实机探针
+	                              # 2026-09-14 抓获；装备槽获取途径跳转链 HUD 应正常显示）
+	mgr = p_mgr
+	player = p_player
+	rng = p_rng
+	var stype: String = StageAccount.stage_type(stage_id)
+	_mode = "elite" if stype == "elite" else "normal"
+	_get_way_stage = _real_stage_id(stage_id)
+	_current_chapter = _chapter_of_stage(stage_id)
+	_pre_chapter = _current_chapter
+	setup()
+	_build_content()
+
+
+func _chapter_of_stage(stage_id: int) -> int:
+	var st: Dictionary = player.cm.get_raw_table(&"Stage")
+	return int(st.get(str(_real_stage_id(stage_id)), {}).get("Chapter ID", 1))
+
+
+# 源 createByStage :1655/:1658：elite raw id（>=10000）转 Stage Group 真 sid（普通关直返）。
+func _real_stage_id(stage_id: int) -> int:
+	if stage_id >= 10000:
+		var st: Dictionary = player.cm.get_raw_table(&"Stage")
+		return int(st.get(str(stage_id), {}).get("Stage Group", stage_id))
+	return stage_id
+
+
+# 建 UI 内容：base 从 .tscn instantiate（位置/size 固化）+ bind signals + fill mode toggle 文本。
+# 本项目单机化 pushScene→PopWindow，故 shade 透明 + .tscn %FrameworkBg 补 bg.jpg 还原源视觉。
+# 注：2026-07-20 组缩放 0.9/ModeLayer -30 系偏大口径（base×cs 漏÷CS）补偿，随 Task 5
+# 贴图口径修正一并撤销（源 mode 区中心 y=205/210 直译）。
+func _build_content() -> void:
+	_content = CONTENT_SCENE.instantiate() as Control
+	container.add_child(_content)
+	_map_host = _content.get_node("%MapLayerHost") as Control
+	_frame_layer = _content.get_node("%FrameLayer") as Control
+	_dot_container = _content.get_node("%DotContainer") as Control
+	(_content.get_node("%CloseBtn") as BaseButton).pressed.connect(remove_window)
+	for mode in ["normal", "elite", "guild"]:
+		var btn: TextureButton = _content.get_node("%Mode" + mode.capitalize() + "Btn") as TextureButton
+		_mode_buttons[mode] = btn
+		btn.pressed.connect(_on_mode_pressed.bind(mode))
+	(_content.get_node("%PrevArrow") as BaseButton).pressed.connect(_on_prev_chapter)
+	(_content.get_node("%NextArrow") as BaseButton).pressed.connect(_on_next_chapter)
+	StageSelectFills.fill_mode_toggle(_mode_buttons, _mode, player.cm)
+	_refresh_view("init")
+	# HudOverlay 切 identity=stageselect（强制展开 shortcut + 子场景货币条）。
+
+
+
+# setup_panel 在 show_window 前（panel 未入树），持续动画须等入树后启动（同 equip_strengthen_anim.gd:93 范式）。
+func _enter_tree() -> void:
+	_start_arrow_bob()
+	_bob_all_pointers()
+	_blink_all_masks()
+	_animate_get_way_guide()
+
+
+# op="init"（首次，无动画）/ "chapter"（map slide + title fade；frame 章节不重建，照源 createFrame 不随章节）/ "mode"（map fadeOut + frame/title/dots fade）。
+func _refresh_view(op: String = "init") -> void:
+	var cm: Variant = player.cm if player != null else null
+	var star_of: Callable = Callable(self, "_get_stage_stars")
+	var max_ch: int = mgr.get_max_chapter(_mode) if mgr != null else _current_chapter
+	# --- map layer（源 createMap:1359，章节 slide / mode fadeOut）---
+	if op == "init":
+		_clear_children(_map_host)
+	var old_map: Array = _map_host.get_children() if op != "init" else []
+	var map_layer: Dictionary = StageSelectFills.create_map_layer(_map_host, _current_chapter, _mode, cm, star_of)
+	_stage_buttons = map_layer["stage_buttons"]
+	for sid in _stage_buttons:
+		(_stage_buttons[sid] as TextureButton).pressed.connect(_on_stage_clicked.bind(sid))
+	# 命中统一分发：按钮全 IGNORE，捕获层 gui_input 分发最近中心者（2026-09-09 根修，
+	# 树序 rect 命中互吞见 fills _add_hit_catcher 注释）。
+	var catcher: Control = map_layer["hit_catcher"] as Control
+	catcher.gui_input.connect(_on_map_hit_input.bind(catcher))
+	_play_map_transition(old_map, map_layer["node"] as Control, op)
+	# --- frame（源 createFrame:944，章节 skip；init 清+建；mode 重建 fade）---
+	if op == "init":
+		_clear_children(_frame_layer)
+		StageSelectFills.create_frame(_frame_layer, _mode)
+	elif op == "mode":
+		var old_frame: Array = _meta_children(_frame_layer, META_FRAME)
+		StageSelectFills.create_frame(_frame_layer, _mode)
+		_crossfade_diff(old_frame, _meta_children(_frame_layer, META_FRAME), LAYER_FADE_TIME)
+	# --- title（源 createTitle:885，章节/mode 都 fade；init 直接）---
+	var old_title: Array = _meta_children(_frame_layer, META_TITLE) if op != "init" else []
+	StageSelectFills.create_title(_frame_layer, _current_chapter, cm)
+	if op != "init":
+		_crossfade_diff(old_title, _meta_children(_frame_layer, META_TITLE), LAYER_FADE_TIME)
+	# --- mode toggle + arrows visibility（源 setChapterButtonState:643 边界隐藏）---
+	StageSelectFills.fill_mode_toggle(_mode_buttons, _mode, cm)
+	(_content.get_node("%PrevArrow") as CanvasItem).visible = _current_chapter > 1
+	(_content.get_node("%NextArrow") as CanvasItem).visible = _current_chapter < max_ch
+	# --- dots（源 refreshDot:667/createDot:676，mode fade 0.2；章节/init 无 fade 直接重建，源 createDot:677 移除旧容器）---
+	if op == "mode":
+		var old_dots := _dot_container.get_children()
+		StageSelectFills.create_chapter_dots(_dot_container, max_ch, _current_chapter, _mode)
+		_crossfade_diff(old_dots, _dot_container.get_children(), LAYER_FADE_TIME)
+	else:
+		_clear_children(_dot_container)
+		StageSelectFills.create_chapter_dots(_dot_container, max_ch, _current_chapter, _mode)
+	# guild 模式 dots 隐藏（源 createDot :698-702 dotContainer:setVisible(false)）
+	_dot_container.visible = _mode != "guild"
+	# 启动新 pointer 浮动（未入树时 _bob_pointer 守卫跳过，_enter_tree 兜底；切换后新 pointer 在此启动）
+	_bob_all_pointers()
+	_blink_all_masks()
+	_update_get_way_guide()
+
+
+static func _clear_children(host: Control) -> void:
+	for c in host.get_children():
+		c.free()
+
+
+static func _meta_children(host: Control, key: StringName) -> Array:
+	var out: Array = []
+	for c in host.get_children():
+		if c is CanvasItem and c.get_meta(key, false):
+			out.append(c)
+	return out
+
+
+# 旧节点 fadeOut→free，新节点（all - old）fadeIn。源 createFrame/createTitle/refreshDot crossfade 0.2s。
+func _crossfade_diff(old: Array, all_nodes: Array, time: float) -> void:
+	for c in old:
+		if is_instance_valid(c):
+			var tw := create_tween()
+			tw.tween_property(c, "modulate:a", 0.0, time)
+			tw.tween_callback(c.free)
+	for c in all_nodes:
+		if c not in old and is_instance_valid(c):
+			(c as CanvasItem).modulate.a = 0.0
+			var tw := create_tween()
+			tw.tween_property(c, "modulate:a", 1.0, time)
+
+
+func _play_map_transition(old_maps: Array, new_map: Control, op: String) -> void:
+	if op == "init" or old_maps.is_empty() or new_map == null:
+		return
+	if op == "chapter":
+		var dir: float = 1.0 if _current_chapter > _pre_chapter else -1.0
+		var base_x: float = StageSelectFills.CLIP_RECT.position.x
+		new_map.position.x = base_x + dir * MAP_SLIDE_DIST
+		var tw := create_tween()
+		tw.tween_property(new_map, "position:x", base_x, MAP_SLIDE_TIME).set_ease(Tween.EASE_OUT)
+		for old in old_maps:
+			if is_instance_valid(old):
+				(old as CanvasItem).position.x = base_x
+				var tw2 := create_tween()
+				tw2.tween_property(old, "position:x", base_x - dir * MAP_SLIDE_DIST, MAP_SLIDE_TIME).set_ease(Tween.EASE_OUT)
+				tw2.tween_callback((old as Node).free)
+	elif op == "mode":
+		for old in old_maps:
+			if is_instance_valid(old):
+				var tw := create_tween()
+				tw.tween_property(old, "modulate:a", 0.0, MAP_FADE_TIME)
+				tw.tween_callback((old as Node).free)
+
+
+func _start_arrow_bob() -> void:
+	if _arrows_bobbing or _content == null or not is_instance_valid(_content):
+		return
+	_arrows_bobbing = true
+	_bob_x(_content.get_node_or_null("%PrevArrow") as CanvasItem, -ARROW_BOB_DX)
+	_bob_x(_content.get_node_or_null("%NextArrow") as CanvasItem, ARROW_BOB_DX)
+
+
+func _bob_x(node: CanvasItem, dx: float) -> void:
+	if node == null or not node.is_inside_tree():
+		return
+	var base_x: float = node.position.x
+	var tw := node.create_tween().set_loops()
+	tw.tween_property(node, "position:x", base_x + dx, ARROW_BOB_TIME)
+	tw.tween_property(node, "position:x", base_x, ARROW_BOB_TIME)
+
+
+func _bob_all_pointers() -> void:
+	if _map_host == null:
+		return
+	for layer in _map_host.get_children():
+		if not (layer is Control):
+			continue
+		for c in (layer as Control).get_children():
+			if c.has_meta(META_POINTER) and not c.get_meta(META_BOBBED, false):
+				_bob_pointer(c as CanvasItem)
+
+
+func _bob_pointer(p: CanvasItem) -> void:
+	if p == null or not p.is_inside_tree() or p.get_meta(META_BOBBED, false):
+		return
+	var base_y: float = p.position.y
+	var tw := p.create_tween().set_loops()
+	tw.tween_property(p, "position:y", base_y - POINTER_BOB_DY, POINTER_BOB_TIME)
+	tw.tween_property(p, "position:y", base_y, POINTER_BOB_TIME)
+	p.set_meta(META_BOBBED, true)
+
+
+# 钥匙关 current/passed mask 循环 alpha 闪烁（源 stageselect.lua:1229-1238 FadeTo 0.3↔1.0）。
+# mask 与 stage btn 平级挂 map layer（Task 5 照源 :1229-1241 平级直译），遍历 layer 子级。
+func _blink_all_masks() -> void:
+	if _map_host == null:
+		return
+	for layer in _map_host.get_children():
+		if not (layer is Control):
+			continue
+		for c in (layer as Control).get_children():
+			if c.has_meta(META_MASK) and not c.get_meta(META_MASK_BLINKED, false):
+				_blink_mask(c as CanvasItem)
+
+
+func _blink_mask(m: CanvasItem) -> void:
+	if m == null or not m.is_inside_tree() or m.get_meta(META_MASK_BLINKED, false):
+		return
+	var tw := m.create_tween().set_loops()
+	tw.tween_property(m, "modulate:a", MASK_ALPHA_MIN, MASK_BLINK_TIME)
+	tw.tween_property(m, "modulate:a", MASK_ALPHA_MAX, MASK_BLINK_TIME)
+	m.set_meta(META_MASK_BLINKED, true)
+
+
+# ===== 获取途径跳转引导（源 createStage :1331-1351 forGetWay / gotoDetailScene :218-228）=====
+
+# GetWay 引导：目标关按钮上叠呼吸圈+手指；同层当前关 pointer 隐藏（源 :1313-1315 currentTag
+# 隐藏突出引导）。目标匹配走 stage_info meta 的 info.id（真 sid，普通/精英模式同口径）——
+# elite 模式 _stage_buttons 字典 key 是组 id（fills._current_sid），直查字典对不上真 sid。
+func _update_get_way_guide() -> void:
+	_clear_get_way_guide()
+	if _get_way_stage <= 0 or _map_host == null:
+		return
+	for layer in _map_host.get_children():
+		if not (layer is Control):
+			continue
+		for c in (layer as Control).get_children():
+			if c is TextureButton and (c as TextureButton).has_meta(&"stage_info"):
+				var info: Dictionary = (c as TextureButton).get_meta(&"stage_info")
+				if int(info.get("id", 0)) == _get_way_stage:
+					_attach_get_way_guide(layer as Control, c as TextureButton)
+					return
+
+
+func _attach_get_way_guide(layer: Control, btn: TextureButton) -> void:
+	# forGetWay 隐藏当前关 pointer（源 :1313-1315 currentTag:setVisible(false)，突出引导）
+	for c in layer.get_children():
+		if c.has_meta(META_POINTER):
+			(c as CanvasItem).visible = false
+	StageSelectFills.attach_get_way_guide(layer, btn)
+	_animate_get_way_guide()
+
+
+# 引导动画启动（未入树守卫 + meta 防重；_enter_tree/_attach 双触发同 pointer/mask 范式）。
+func _animate_get_way_guide() -> void:
+	if _map_host == null:
+		return
+	for layer in _map_host.get_children():
+		if not (layer is Control):
+			continue
+		for c in (layer as Control).get_children():
+			if not (c is CanvasItem):
+				continue
+			var guide: CanvasItem = c as CanvasItem
+			if guide.has_meta(META_GUIDE_CIRCLE) and not guide.get_meta(META_BOBBED, false):
+				_guide_circle_breath(guide)
+			elif guide.has_meta(META_GUIDE_FINGER) and not guide.get_meta(META_BOBBED, false):
+				_guide_finger_slide(guide)
+
+
+func _guide_circle_breath(circle: CanvasItem) -> void:
+	if not circle.is_inside_tree():
+		return
+	var tw := circle.create_tween().set_loops()
+	tw.tween_property(circle, "scale", Vector2(GUIDE_SCALE_MAX, GUIDE_SCALE_MAX), GUIDE_SCALE_TIME)
+	tw.tween_property(circle, "scale", Vector2.ONE, GUIDE_SCALE_TIME)
+	circle.set_meta(META_BOBBED, true)
+
+
+func _guide_finger_slide(finger: CanvasItem) -> void:
+	if not finger.is_inside_tree():
+		return
+	var base_pos: Vector2 = finger.position
+	var tw := finger.create_tween().set_loops()
+	tw.tween_property(finger, "position", base_pos + GUIDE_FINGER_SHIFT, GUIDE_SCALE_TIME)
+	tw.tween_property(finger, "position", base_pos, GUIDE_SCALE_TIME)
+	finger.set_meta(META_BOBBED, true)
+
+
+func _clear_get_way_guide() -> void:
+	if _map_host == null:
+		return
+	for layer in _map_host.get_children():
+		if not (layer is Control):
+			continue
+		for c in (layer as Control).get_children():
+			if c.has_meta(META_GUIDE_CIRCLE) or c.has_meta(META_GUIDE_FINGER):
+				c.free()
+
+
+func _get_stage_stars(sid: int) -> int:
+	if mgr == null:
+		return 0
+	return mgr.stage_stars(sid)
+
+
+func _on_mode_pressed(mode: String) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	_mode = mode
+	# 切模式初始章节同 setup_panel 取 min（源 :1458 eliteInfo.chapter；guild 源 :1466 不走 playerlimit）
+	if mode == "guild" or mgr == null:
+		_current_chapter = mgr.get_max_chapter(mode) if mgr != null else 1
+	else:
+		_current_chapter = mini(mgr.get_max_chapter(mode), _player_max_chapter())
+	_refresh_view("mode")
+
+
+# 章节等级门槛（照源 playerlimit.lua:33-54；StageManager 行数顶格，静态查询经 panel 私有便捷）。
+func _player_max_chapter() -> int:
+	return StageAccount.player_max_chapter(player.cm.get_raw_table(&"PlayerLevel"), player.team_level)
+
+
+func _chapter_unlock_level(chapter: int) -> int:
+	return StageAccount.chapter_unlock_level(player.cm.get_raw_table(&"PlayerLevel"), chapter)
+
+
+func _on_prev_chapter() -> void:
+	_change_chapter(-1)
+
+
+func _on_next_chapter() -> void:
+	_change_chapter(1)
+
+
+func _change_chapter(delta: int) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	var max_ch: int = mgr.get_max_chapter(_mode) if mgr != null else StageSelectMap.CHAPTER_MAX
+	_pre_chapter = _current_chapter
+	_current_chapter = clampi(_current_chapter + delta, 1, max_ch)
+	# 目标章超玩家等级上限 → toast 拦截不切换（源 doChangeChapter:434-437 只挡 "+" 方向；
+	# 文案源 zh-CN LSTR STAGESELECT.CLAN_LEVEL_TOLD_LEVEL_TO_UNLOCK_THE_NEXT_CHAPTER）
+	if delta > 0 and mgr != null and player != null \
+			and _current_chapter > _player_max_chapter():
+		Toast.show_message("战队等级达到%d级解锁下一章节" % _chapter_unlock_level(_current_chapter))
+		_current_chapter = _pre_chapter
+		return
+	if _current_chapter != _pre_chapter:
+		_refresh_view("chapter")
+
+
+# ---- 命中统一分发（2026-09-09 根修）----
+# 源 doStageTouch :119-152 等价：began 在全部可点关中圆形命中（r45）取归属（源循环
+# 无 break 逐个覆盖 = 平局取数据序靠后）+ setScale(0.95) 按下反馈；ended 触发 pressStageID。
+# 旧树序 rect 命中在密集据点（最小间距 41 < 命中层 90）下互吞的根因与实证见 fills
+# _add_hit_catcher 注释。locked（disabled）不参与（源 type=="locked" 不进命中循环）。
+func _on_map_hit_input(event: InputEvent, catcher: Control) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var emb := event as InputEventMouseButton
+	if emb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var layer: Control = catcher.get_parent() as Control
+	# 动画期守卫（源 numberOfRunningActions/getOpacity）：章节 slide 中 position.x 偏离
+	# CLIP 基线；mode fade 中 modulate.a < 1。began 后切章节旧层被 free，由
+	# is_instance_valid 弃触（同源 ended 章节校验）。
+	if absf(layer.position.x - StageSelectFills.CLIP_RECT.position.x) > STAGE_HIT_ANIM_EPS \
+			or layer.modulate.a < 1.0 - STAGE_HIT_ANIM_EPS * 0.01:
+		return
+	if emb.pressed:
+		# gui_input 契约：event.position 已是接收 Control 的局部坐标（引擎预变换，
+		# 2026-09-09 实机取证 make_input_local=(181,287)=点击的 dot24 局部中心），
+		# 勿再 make_input_local（double transform 会整体偏移 (44,88) 点错关）。
+		# catcher position=ZERO → 其局部系即 MapLayer 局部系，与按钮 position 同系。
+		var btn := _pick_nearest_stage(layer, emb.position)
+		if btn == null:
+			return
+		_pressed_stage_btn = btn
+		var icon := _stage_icon_of(btn)
+		if icon != null:
+			icon.scale = Vector2.ONE * STAGE_PRESS_SCALE
+	elif _pressed_stage_btn != null and is_instance_valid(_pressed_stage_btn):
+		var icon2 := _stage_icon_of(_pressed_stage_btn)
+		if icon2 != null:
+			icon2.scale = Vector2.ONE
+		_pressed_stage_btn.pressed.emit()
+		_pressed_stage_btn = null
+	else:
+		_pressed_stage_btn = null
+
+
+## 距点击最近中心（< r45 = STAGE_HIT_SIZE/2，源 isPointInCircle 半径）的可点按钮；
+## 平局取数据序靠后（children 逆序遍历 + 严格小于，先评估的靠后者平局保留）。
+func _pick_nearest_stage(layer: Control, local: Vector2) -> TextureButton:
+	var best_d: float = StageSelectFills.STAGE_HIT_SIZE * 0.5
+	var hit: TextureButton = null
+	var children := layer.get_children()
+	for i in range(children.size() - 1, -1, -1):
+		var btn := children[i] as TextureButton
+		if btn == null or btn.disabled:
+			continue
+		var d: float = (btn.position + btn.size * 0.5 - local).length()
+		if d < best_d:
+			best_d = d
+			hit = btn
+	return hit
+
+
+## 按钮的贴图显示层（fills 命中根修后 icon = 首个 TextureRect 子节点）。
+func _stage_icon_of(btn: TextureButton) -> TextureRect:
+	for c in btn.get_children():
+		if c is TextureRect:
+			return c as TextureRect
+	return null
+
+
+func _on_stage_clicked(sid: int) -> void:
+	AudioPlayer.play_sfx("common_click_feedback")
+	if mgr == null or player == null or rng == null:
+		return
+	# 源 gotoDetailScene :218-228：GetWay 引导下点进目标关详情 → 清 circle/finger + getWayMode。
+	# 精英模式按钮 key 是组 id（fills._current_sid），比较前经 _real_stage_id 归一到真 sid。
+	if _get_way_stage > 0 and _real_stage_id(sid) == _get_way_stage:
+		_get_way_stage = 0
+		_clear_get_way_guide()
+	# 详情标题由弹窗内 %MapTitleBg+%StageTitle 自绘（源 stagedetail.lua:1620-1646，2026-09-03 改）。
+	# 旧"打开期间改父面板章节标题+关闭恢复"联动已删：父标题（z=201）被弹窗全屏
+	# FrameworkBg 盖住实机不可见，联动是死代码（即标题缺失 bug 根因）。
+	var detail := StageDetailPanel.new("stagedetail", {})
+	detail.setup_panel(sid, mgr, player, rng)
+	detail.show_window(get_parent())

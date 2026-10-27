@@ -1,0 +1,214 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/excavate/excavate_empty.jpg" id="2_framebg"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/excavate/excavate_main_frame.png" id="3_frame"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/excavate/excavate_main_title.png" id="4_title"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/excavate/excavate_magnifier.png" id="5_mag"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn.png" id="6_back"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="7_backp"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/crusade/crusade_reset_bg.png" id="8_sframe"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/excavate/excavate_word_search.png" id="9_slbl"]
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/goldicon_small.png" id="11_gold"]
+
+; 藏宝地穴搜索两件套静态树（excavate 批 Task 4，2026-08-17）。
+; 照源 uieditor/excavatesearch.lua 声明表（18 条目）+ ui/excavate/search.lua 直译。
+; 场景层点空间直译 to_godot(x,y)=(x+80,560-y)；frame_container/search_container
+; 子坐标为父局部（Cocos 子 y 向上翻转：从上=父高-cy）。A 类债 #1/#2 归源：
+; frame fix_wh 733.59x454.69（纹理 734x455 ratio 1.6132 完全等比，弃 520x400 强拉）、
+; frame_bg fix_wh 702.34x392.97（源对老资产 899x503 的等比值，现资产 734x455 资产
+; 代位 ratio 偏差 10.8%——702.34 宽为填满 frame 透明内空的功能尺寸，照源直译不收窄）。
+; - bg fix_wh 800x481.25 中心 (400,239.84) → (80,79.54)-(880,560.79)。
+; - frame_container Layer 800x480.47 anchor(0,0)@(-3.13,3.91) → (76.88,75.63)-(876.88,556.09)。
+; - frame_bg 中心局部 (402.34,217.19)、frame @(402.34,233.59)、title 246.09x35.94
+;   @(402.34,431.25)、back_button 74x75px÷CS=57.78x58.54 @(65.63,434.38)（无 fix_wh
+;   走 ÷1.28125 口径，源注释值 57.81x58.59 为设计稿值）。
+; - search_icon fix_wh 100.78x102.34 中心 (400,254.69) → (429.61,254.14)-(530.39,356.48)。
+; - histroy_button（源拼写如此）117.19x53.13 中心 (154.69,81.25)；explain_button
+;   66.41x53.13 @(250.78,81.25)；贴图 sell_number 系走 theme ExcavateNavBtn，文案 fill。
+; - search_frame Scale9 171.88x101.56 中心 (637.5,99.22) opacity 200 → modulate.a；
+;   cap(23.44,23.44,19.53,19.53)@75x75 → L23/B23/R32/T32。
+; - search_container Layer 39.06² @(85.94,54.69)（search_frame 局部）；
+;   search_button 140.63x50.78 中心 (0.78,-21.88)（cy 为负=越界挂 container 下方，
+;   全局中心 (718.28,478.75)）；gold_icon 33.59x31.25 @(-28.91,22.66)；
+;   cost_label anchor(1,0.5) 右缘局部 48.44；search_label 140.84x52.55 中心=按钮
+;   几何中心 (70.31,25.39)，tavern 图标骑按钮。
+; 受控裁剪：history_red_tag（search.lua:92-101 依赖服务器已读标记
+; checkUnreadExcavateHistory，数据层无对应状态恒不可见，节点不建，照 history 批
+; vit_button 同口径）；源 :121-127 label 超宽 scale 钳制（中文 88<100/44<50 恒不触发）省略。
+; text 为编辑器预览默认，panel fill 覆盖（LSTR）。
+; 实跑反馈修复（2026-08-17）：Bg 照源 pushScene 全屏语义恢复铺满 + STOP
+; （原 fix_wh 800×481 直译不满屏致主城透过、弹窗内点击穿透 shade 误关窗；当时按
+; 960×640 视口写 960×640 铺满，2026-08-21 viewport 800×480 终审清偿为 800×480）；SearchLabel
+; 弃 2 色块占位贴图（icon_search_1 系源资产即色块）改接在库文字图 excavate_word_search
+; （87×25，源未接线的本地化遗留资产，受控偏离）。
+
+[node name="ExcavateSearchContent" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Bg" type="TextureRect" parent="."]
+layout_mode = 0
+offset_right = 800.0
+offset_bottom = 480.0
+texture = ExtResource("1_bg")
+expand_mode = 1
+mouse_filter = 0
+
+[node name="FrameContainer" type="Control" parent="."]
+layout_mode = 0
+offset_left = -3.125
+offset_top = -4.375
+offset_right = 796.875
+offset_bottom = 476.094
+mouse_filter = 2
+
+[node name="FrameBg" type="TextureRect" parent="FrameContainer"]
+layout_mode = 0
+offset_left = 51.171875
+offset_top = 66.796875
+offset_right = 753.515625
+offset_bottom = 459.765625
+texture = ExtResource("2_framebg")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Frame" type="TextureRect" parent="FrameContainer"]
+layout_mode = 0
+offset_left = 35.55
+offset_top = 19.54
+offset_right = 769.14
+offset_bottom = 474.23
+texture = ExtResource("3_frame")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="Title" type="TextureRect" parent="FrameContainer"]
+layout_mode = 0
+offset_left = 279.296875
+offset_top = 31.25
+offset_right = 525.390625
+offset_bottom = 67.1875
+texture = ExtResource("4_title")
+expand_mode = 1
+mouse_filter = 2
+
+
+[node name="SearchIcon" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 360.59
+offset_top = 185.51
+offset_right = 439.41
+offset_bottom = 265.12
+texture = ExtResource("5_mag")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="HistroyButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 96.0938
+offset_top = 372.188
+offset_right = 213.281
+offset_bottom = 425.312
+theme_type_variation = &"ExcavateNavBtn"
+mouse_filter = 0
+text = "防守记录"
+
+[node name="ExplainButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 217.578
+offset_top = 372.188
+offset_right = 283.984
+offset_bottom = 425.312
+theme_type_variation = &"ExcavateNavBtn"
+mouse_filter = 0
+text = "规则"
+
+[node name="SearchFrame" type="NinePatchRect" parent="."]
+layout_mode = 0
+offset_left = 551.562
+offset_top = 330.0
+offset_right = 723.438
+offset_bottom = 431.562
+modulate = Color(1, 1, 1, 0.784314)
+texture = ExtResource("8_sframe")
+patch_margin_left = 18
+patch_margin_top = 25
+patch_margin_right = 25
+patch_margin_bottom = 18
+mouse_filter = 2
+
+[node name="SearchContainer" type="Control" parent="SearchFrame"]
+layout_mode = 0
+offset_left = 85.9375
+offset_top = 7.8125
+offset_right = 125.0
+offset_bottom = 46.875
+mouse_filter = 2
+
+[node name="SearchButton" type="Button" parent="SearchFrame/SearchContainer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -69.53125
+offset_top = 35.546875
+offset_right = 71.09375
+offset_bottom = 86.328125
+theme_type_variation = &"ExcavateSearchBtn"
+mouse_filter = 0
+
+[node name="SearchLabel" type="TextureButton" parent="SearchFrame/SearchContainer/SearchButton"]
+layout_mode = 0
+; 源 excavatesearch.lua:368 fix_wh={w=140.8437778125, h=52.5536484375} 显式声明，显示=fix_wh 值=140.84×52.55
+; （91a46f3 断言"无 fix_wh ÷CS=68×20"漏查 config 段，审查二轮翻案回源）；中心保持按钮几何中心 (70.31,25.39)（父局部）。
+; 受控偏离：源图 icon_search_1 色块换文字图 excavate_word_search（2026-08-17 决策）。
+offset_left = -0.1133
+offset_top = -0.8862
+offset_right = 140.7305
+offset_bottom = 51.6674
+texture_normal = ExtResource("9_slbl")
+texture_pressed = ExtResource("9_slbl")
+ignore_texture_size = true
+stretch_mode = 0
+mouse_filter = 2
+
+[node name="GoldIcon" type="TextureRect" parent="SearchFrame/SearchContainer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -45.703125
+offset_top = 0.78125
+offset_right = -12.109375
+offset_bottom = 32.03125
+texture = ExtResource("11_gold")
+expand_mode = 1
+mouse_filter = 2
+
+[node name="CostLabel" type="Label" parent="SearchFrame/SearchContainer"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -11.5625
+offset_top = 3.84375
+offset_right = 48.4375
+offset_bottom = 25.84375
+theme_type_variation = &"ExcavateCostLabel"
+horizontal_alignment = 2
+vertical_alignment = 1
+mouse_filter = 2
+text = "10000"
+
+[node name="BackButton" type="TextureButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.76
+offset_bottom = 73.54
+texture_normal = ExtResource("6_back")
+texture_pressed = ExtResource("7_backp")
+ignore_texture_size = true
+stretch_mode = 0

@@ -1,0 +1,428 @@
+[gd_scene load_steps=19 format=3 uid="uid://cc28pqos3tuu6"]
+
+[ext_resource type="Texture2D" uid="uid://iiqj0g6fyk20" path="res://assets/ui/alpha/HVGA/bg.jpg" id="1_bg"]
+[ext_resource type="Texture2D" uid="uid://cldnvxkdjtyev" path="res://assets/ui/alpha/HVGA/detail_bg_2.png" id="2_frame2"]
+[ext_resource type="Texture2D" uid="uid://bq6sy4g6g5xlv" path="res://assets/ui/alpha/HVGA/detail_title_bg.png" id="3_titlebg"]
+[ext_resource type="Texture2D" uid="uid://ttotg8646kx2" path="res://assets/ui/alpha/HVGA/vitalityicon.png" id="4_vit"]
+[ext_resource type="Texture2D" uid="uid://3g388bew2d6i" path="res://assets/ui/alpha/HVGA/detail_enemy_bg.png" id="5_enemybg"]
+[ext_resource type="Texture2D" uid="uid://c7x8uctrehbxe" path="res://assets/ui/alpha/HVGA/startbtn.png" id="6_go"]
+[ext_resource type="Texture2D" uid="uid://evqv4np7xsax" path="res://assets/ui/alpha/HVGA/startbtn-disabled.png" id="7_goshade"]
+[ext_resource type="Texture2D" uid="uid://bsnnt2teqjvsj" path="res://assets/ui/alpha/HVGA/tavern_button_normal_1.png" id="8_reset"]
+[ext_resource type="Texture2D" uid="uid://dxmhf4w0vkr74" path="res://assets/ui/alpha/HVGA/tavern_button_normal_2.png" id="9_resetp"]
+[ext_resource type="Texture2D" uid="uid://dqa34v8g886cf" path="res://assets/ui/alpha/HVGA/backbtn.png" id="10_back"]
+[ext_resource type="Texture2D" uid="uid://cxusvs3ojqiiw" path="res://assets/ui/alpha/HVGA/backbtn-disabled.png" id="11_backp"]
+[ext_resource type="Texture2D" uid="uid://7gni6shy3d8v" path="res://assets/ui/alpha/HVGA/stage-map-frame.png" id="12_frame3"]
+[ext_resource type="Texture2D" uid="uid://y8v6rp6mnl31" path="res://assets/ui/alpha/HVGA/detail_star.png" id="13_star"]
+[ext_resource type="Texture2D" uid="uid://bjsu6o7nw3t6g" path="res://assets/ui/alpha/HVGA/detail_star_grey.png" id="13_stargrey"]
+[ext_resource type="Texture2D" uid="uid://8hyx1ovdjrfh" path="res://assets/ui/alpha/HVGA/main_vit_tips.png" id="14_sweepbg"]
+[ext_resource type="Texture2D" uid="uid://drjijfhinsoq7" path="res://assets/ui/alpha/HVGA/stagedetail_raidticket_icon.png" id="15_ticket"]
+
+[ext_resource type="Texture2D" path="res://assets/ui/alpha/HVGA/Normal_title_bg.png" id="16_maptitle"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_empty"]
+
+[node name="StageDetailContent" type="Control" unique_id=135745827]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FrameworkBg" type="TextureRect" parent="." unique_id=1725632254]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 800.0
+offset_bottom = 480.0
+mouse_filter = 2
+texture = ExtResource("1_bg")
+expand_mode = 1
+
+[node name="Frame2" type="TextureRect" parent="." unique_id=121549709]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 35.0
+offset_top = 77.0
+offset_right = 765.0
+offset_bottom = 473.0
+mouse_filter = 2
+texture = ExtResource("2_frame2")
+expand_mode = 1
+
+[node name="Frame3" type="TextureRect" parent="." unique_id=1401968421]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 35.0
+offset_top = 77.0
+offset_right = 765.0
+offset_bottom = 473.0
+mouse_filter = 2
+texture = ExtResource("12_frame3")
+expand_mode = 1
+
+[node name="TitleBg" type="TextureRect" parent="." unique_id=988708085]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 148.0
+offset_top = 119.0
+offset_right = 652.0
+offset_bottom = 131.0
+mouse_filter = 2
+texture = ExtResource("3_titlebg")
+expand_mode = 1
+
+; 源 stagedetail.lua:1620-1631 map_title_bg：随 stage_type 换图（fill _set_texture），
+; 586×79px÷CS=457.37×61.68 中心(397,480-393)；星（StarHBox 声明在后）叠其上=源 readNode 后加序
+[node name="MapTitleBg" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 168.31
+offset_top = 56.16
+offset_right = 625.68
+offset_bottom = 117.84
+mouse_filter = 2
+texture = ExtResource("16_maptitle")
+expand_mode = 1
+
+; 源 :1633-1646 title Label：fontinfo ui_normal_button(17 号白+暗红影(63,5,0)(0,2))
+; color toccc3(16436496)=(250,205,16)；中心(397,87)；超 330 宽 fill 时缩放
+[node name="StageTitle" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 167.0
+offset_top = 76.0
+offset_right = 627.0
+offset_bottom = 98.0
+theme_override_colors/font_color = Color(0.98, 0.804, 0.063, 1)
+theme_override_colors/font_shadow_color = Color(0.247, 0.02, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+pivot_offset = Vector2(230, 11)
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Detail" type="Label" parent="." unique_id=611903851]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 70.0
+offset_top = 160.0
+offset_right = 730.0
+offset_bottom = 220.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 21
+autowrap_mode = 3
+vertical_alignment = 1
+
+[node name="PowerTitle" type="Label" parent="." unique_id=1755623783]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 70.0
+offset_top = 250.0
+offset_right = 220.0
+offset_bottom = 274.0
+theme_type_variation = &"StageSectionLabel"
+text = "体力消耗"
+
+[node name="PowerNumber" type="Label" parent="." unique_id=1998089572]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 170.0
+offset_top = 250.0
+offset_right = 260.0
+offset_bottom = 274.0
+theme_type_variation = &"StageNumberLabel"
+
+[node name="PowerIcon" type="TextureRect" parent="." unique_id=481702496]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 200.0
+offset_top = 252.0
+offset_right = 224.0
+offset_bottom = 282.0
+mouse_filter = 2
+texture = ExtResource("4_vit")
+expand_mode = 1
+
+[node name="CountTitle" type="Label" parent="." unique_id=273614256]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 250.0
+offset_top = 250.0
+offset_right = 440.0
+offset_bottom = 274.0
+theme_type_variation = &"StageSectionLabel"
+text = "今日剩余次数:"
+
+[node name="CountNumber" type="Label" parent="." unique_id=1577422641]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 390.0
+offset_top = 250.0
+offset_right = 440.0
+offset_bottom = 274.0
+theme_type_variation = &"StageNumberLabel"
+
+[node name="TotalNumber" type="Label" parent="." unique_id=1725962886]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 410.0
+offset_top = 250.0
+offset_right = 540.0
+offset_bottom = 274.0
+theme_type_variation = &"StageNumberLabel"
+
+[node name="Reset" type="TextureButton" parent="." unique_id=1089188910]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 450.0
+offset_top = 213.0
+offset_right = 550.0
+offset_bottom = 263.0
+texture_normal = ExtResource("8_reset")
+texture_pressed = ExtResource("9_resetp")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="ResetLabel" type="Label" parent="Reset" unique_id=696834154]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.808, 0.122, 1)
+theme_override_font_sizes/font_size = 20
+text = "购买"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnemyBg" type="TextureRect" parent="." unique_id=592205821]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 90.0
+offset_top = 269.61
+offset_right = 774.49
+offset_bottom = 350.0
+mouse_filter = 2
+texture = ExtResource("5_enemybg")
+expand_mode = 1
+
+[node name="EnemyTitle" type="Label" parent="." unique_id=652646161]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 70.0
+offset_top = 323.0
+offset_right = 220.0
+offset_bottom = 347.0
+theme_type_variation = &"StageSectionLabel"
+text = "敌方阵容"
+
+[node name="AwardTitle" type="Label" parent="." unique_id=932279193]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 70.0
+offset_top = 403.0
+offset_right = 220.0
+offset_bottom = 427.0
+theme_type_variation = &"StageSectionLabel"
+text = "可能获得"
+
+[node name="GoButton" type="TextureButton" parent="." unique_id=35635508]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 648.05
+offset_top = 352.0
+offset_right = 747.95
+offset_bottom = 448.0
+texture_normal = ExtResource("6_go")
+ignore_texture_size = true
+stretch_mode = 0
+
+[node name="GoButtonShade" type="TextureRect" parent="GoButton" unique_id=2144768949]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_goshade")
+expand_mode = 1
+
+[node name="CloseBtn" type="TextureButton" parent="." unique_id=1292978566]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 77.76
+offset_bottom = 73.54
+texture_normal = ExtResource("10_back")
+texture_pressed = ExtResource("11_backp")
+ignore_texture_size = true
+stretch_mode = 0
+
+; 源 createStars:1212-1261：star 左下 anchor(0,0) pos(320+gap*(i-1),336) scale 0.8，
+; gap=55（normal）；70×71px÷CS×0.8=43.71×44.33，星底=560-336=224、星1 左=400；
+; sep 11 → 步进 54.71（源 55 差 0.29/步）；TitleBg 细条(199..211)穿星中下部 = 源设计
+; （旧 56 大星+整体偏高 14px 致条压星下缘，Task 9 归源）
+[node name="StarHBox" type="HBoxContainer" parent="." unique_id=1669370048]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 320.0
+offset_top = 99.67
+offset_right = 473.13
+offset_bottom = 144.0
+mouse_filter = 2
+theme_override_constants/separation = 11
+
+[node name="Star1" type="TextureRect" parent="StarHBox" unique_id=351875002]
+custom_minimum_size = Vector2(43.71, 44.33)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("13_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star2" type="TextureRect" parent="StarHBox" unique_id=1386097018]
+custom_minimum_size = Vector2(43.71, 44.33)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("13_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star3" type="TextureRect" parent="StarHBox" unique_id=1159261772]
+custom_minimum_size = Vector2(43.71, 44.33)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("13_stargrey")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SweepCluster" type="Panel" parent="." unique_id=1059091099]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 594.5
+offset_top = 199.0
+offset_right = 729.5
+offset_bottom = 349.0
+mouse_filter = 2
+
+; 源 :300-314 bg Scale9(main_vit_tips, cap CCRectMake(15,20,45,15)) scaleSize 135×150 铺满
+; cluster；TextureRect 整图拉伸毁边框纹样（2026-09-03 巡检），改 NinePatch 纹理像素直译
+; （margin=源 cap：left 15 top 20 right 103-15-45=43 bottom 61-20-15=26，同 theme SB_sweep_n 口径）
+[node name="SweepBg" type="NinePatchRect" parent="SweepCluster" unique_id=761668227]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("14_sweepbg")
+patch_margin_left = 15
+patch_margin_top = 20
+patch_margin_right = 43
+patch_margin_bottom = 26
+
+; 源 :331-342 sweep_icon：39×39px÷CS=30.47 点，anchor(0,0.5)@ccp(620,259)
+; → cluster 内左 25.5、垂直中心 22
+[node name="SweepTicketIcon" type="TextureRect" parent="SweepCluster" unique_id=1057652495]
+layout_mode = 0
+offset_left = 25.5
+offset_top = 6.76
+offset_right = 55.97
+offset_bottom = 37.24
+mouse_filter = 2
+texture = ExtResource("15_ticket")
+expand_mode = 1
+
+; 源 :359-373 count：18 号 ccc3(255,234,198)，anchor(0,0.5)@ccp(665,259) → 左 70.5 中心 22
+[node name="SweepTicketCount" type="Label" parent="SweepCluster" unique_id=1787257184]
+layout_mode = 0
+offset_left = 70.5
+offset_top = 8.0
+offset_right = 131.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(1, 0.918, 0.776, 1)
+theme_override_font_sizes/font_size = 18
+vertical_alignment = 1
+
+[node name="SweepSomeBtn" type="Button" parent="SweepCluster" unique_id=29618594]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 7.5
+offset_top = 40.0
+offset_right = 127.5
+offset_bottom = 90.0
+theme_type_variation = &"StageSweepBtn"
+
+[node name="SweepSomeLabel" type="Label" parent="SweepCluster/SweepSomeBtn" unique_id=168729370]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 0.808, 0.122, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SweepOnceBtn" type="Button" parent="SweepCluster" unique_id=1000026261]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 7.5
+offset_top = 95.0
+offset_right = 127.5
+offset_bottom = 145.0
+theme_type_variation = &"StageSweepBtn"
+
+[node name="SweepOnceLabel" type="Label" parent="SweepCluster/SweepOnceBtn" unique_id=716694955]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 0.808, 0.122, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+vertical_alignment = 1
+
+; 源 createEnemy :1144 oy=168 直译中心 y=480-168=312；2026-09-04 用户观感裁决下移 23 点
+; 对齐 %EnemyTitle 标签中心线 y=335（受控偏离：观感优先于源直译，槽高 80 不变）
+[node name="EnemyBoxPos" type="Panel" parent="." unique_id=664232574]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 170.0
+offset_top = 295.0
+offset_right = 570.0
+offset_bottom = 375.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_empty")
+
+[node name="EnemyHBox" type="HBoxContainer" parent="EnemyBoxPos" unique_id=1755619699]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="RewardBoxPos" type="Panel" parent="." unique_id=1540083313]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 169.0
+offset_top = 382.0
+offset_right = 520.0
+offset_bottom = 454.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_empty")
+
+[node name="RewardHBox" type="HBoxContainer" parent="RewardBoxPos" unique_id=720002657]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_constants/separation = 8
